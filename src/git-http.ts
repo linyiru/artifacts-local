@@ -63,7 +63,11 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/** Wants/haves/done from an upload-pack request, used to tell clones from fetches. */
+/**
+ * Wants and haves in an upload-pack request: no haves means a clone. Whether this round actually
+ * transferred objects is decided from the response (see `PackDetector`), because a protocol v2
+ * client sends no `done` when the server can answer `ready` with the pack straight away.
+ */
 export function classifyUploadPack(body: Buffer, encoding: string | undefined): "clone" | "fetch" | "none" {
   let text: string;
   try {
@@ -72,9 +76,19 @@ export function classifyUploadPack(body: Buffer, encoding: string | undefined): 
     return "none";
   }
   if (!/want [0-9a-f]{40}/.test(text)) return "none";
-  if (!/have [0-9a-f]{40}/.test(text)) return "clone";
-  // Only the final negotiation round carries the `done` pkt-line; earlier rounds are not fetches yet.
-  return text.includes("0009done\n") ? "fetch" : "none";
+  return /have [0-9a-f]{40}/.test(text) ? "fetch" : "clone";
+}
+
+/** Spots a packfile (`PACK` on sideband channel 1) in a streamed upload-pack response. */
+export class PackDetector {
+  found = false;
+  private tail = Buffer.alloc(0);
+  push(chunk: Buffer): void {
+    if (this.found) return;
+    const joined = Buffer.concat([this.tail, chunk]);
+    if (joined.includes("\x01PACK", 0, "latin1")) this.found = true;
+    this.tail = joined.subarray(Math.max(0, joined.length - 4));
+  }
 }
 
 async function refSnapshot(gitDir: string): Promise<Map<string, string>> {
@@ -141,6 +155,13 @@ function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return next;
 }
 
+interface BackendOptions {
+  body?: Buffer;
+  /** Leave the response open so the caller can finish bookkeeping before the client sees the end. */
+  keepOpen?: boolean;
+  tap?: (chunk: Buffer) => void;
+}
+
 /** Run `git http-backend` as a CGI and stream its response. */
 function runBackend(
   store: Store,
@@ -148,7 +169,7 @@ function runBackend(
   req: IncomingMessage,
   res: ServerResponse,
   query: string,
-  body: Buffer | null,
+  opts: BackendOptions = {},
 ): Promise<number> {
   const gitDir = store.gitDir(route.ns, route.repo);
   const env: Record<string, string> = {
@@ -175,6 +196,7 @@ function runBackend(
     let status = 200;
     child.stdout.on("data", (chunk: Buffer) => {
       if (headersSent) {
+        opts.tap?.(chunk);
         res.write(chunk);
         return;
       }
@@ -197,16 +219,19 @@ function runBackend(
       res.writeHead(status, headers);
       headersSent = true;
       const rest = headerBuf.subarray(end + sepLen);
-      if (rest.length) res.write(rest);
+      if (rest.length) {
+        opts.tap?.(rest);
+        res.write(rest);
+      }
     });
     child.on("error", reject);
     child.on("close", (code) => {
       if (!headersSent) plain(res, 500, "git http-backend failed");
-      res.end();
+      else if (!opts.keepOpen) res.end();
       resolve(code === 0 ? status : 500);
     });
     child.stdin.on("error", () => {});
-    if (body) child.stdin.end(body);
+    if (opts.body) child.stdin.end(opts.body);
     else req.pipe(child.stdin);
   });
 }
@@ -250,31 +275,38 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
   const query = url.search.slice(1);
   if (route.service === "git-upload-pack") {
     if (route.path === "/info/refs") {
-      await runBackend(store, route, req, res, query, null);
+      await runBackend(store, route, req, res, query);
       return true;
     }
     const body = await readBody(req);
     const kind = classifyUploadPack(body, req.headers["content-encoding"] as string | undefined);
-    const status = await runBackend(store, route, req, res, query, body);
-    if (status === 200 && kind !== "none") {
+    const pack = new PackDetector();
+    const status = await runBackend(store, route, req, res, query, { body, tap: (c) => pack.push(c) });
+    if (status === 200 && kind !== "none" && pack.found) {
       store.events.emit(kind === "clone" ? "cf.artifacts.repo.cloned" : "cf.artifacts.repo.fetched", route.ns, route.repo, {});
     }
     return true;
   }
 
   if (route.path === "/info/refs") {
-    await runBackend(store, route, req, res, query, null);
+    await runBackend(store, route, req, res, query);
     return true;
   }
   const gitDir = store.gitDir(route.ns, route.repo);
   await withLock(gitDir, async () => {
     const before = await refSnapshot(gitDir);
-    await runBackend(store, route, req, res, query, null);
-    const after = await refSnapshot(gitDir);
-    const payloads = await pushPayloads(gitDir, before, after);
-    if (payloads.length) {
-      await store.recordPush(route.ns, route.repo);
-      for (const p of payloads) store.events.emit("cf.artifacts.repo.pushed", route.ns, route.repo, p);
+    try {
+      // Hold the response until push bookkeeping is done, so a client that has seen `git push`
+      // succeed can rely on last_push_at and the pushed event already being there.
+      await runBackend(store, route, req, res, query, { keepOpen: true });
+      const after = await refSnapshot(gitDir);
+      const payloads = await pushPayloads(gitDir, before, after);
+      if (payloads.length) {
+        await store.recordPush(route.ns, route.repo);
+        for (const p of payloads) store.events.emit("cf.artifacts.repo.pushed", route.ns, route.repo, p);
+      }
+    } finally {
+      res.end();
     }
   });
   return true;

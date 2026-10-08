@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { classifyUploadPack, parseGitRoute, presentedToken, pushPayloads } from "../src/git-http.ts";
+import { PackDetector, classifyUploadPack, parseGitRoute, presentedToken, pushPayloads } from "../src/git-http.ts";
 import { WorkTree, bareFrom, tempDir } from "./helpers.ts";
 
 const q = (s = "") => new URLSearchParams(s);
@@ -58,15 +58,33 @@ describe("classifyUploadPack", () => {
     expect(classifyUploadPack(Buffer.from(`0032want ${H}\n00000009done\n`), undefined)).toBe("clone");
   });
 
-  it("treats a final round with haves as a fetch, earlier rounds as nothing", () => {
+  it("treats wants with haves as a fetch, with or without done", () => {
     expect(classifyUploadPack(Buffer.from(`0032want ${H}\n00000032have ${H}\n0009done\n`), undefined)).toBe("fetch");
-    expect(classifyUploadPack(Buffer.from(`0032want ${H}\n00000032have ${H}\n0000`), undefined)).toBe("none");
+    expect(classifyUploadPack(Buffer.from(`0032want ${H}\n00000032have ${H}\n0000`), undefined)).toBe("fetch");
   });
 
   it("ignores ls-refs and handles gzip bodies", () => {
     expect(classifyUploadPack(Buffer.from("0014command=ls-refs\n0000"), undefined)).toBe("none");
     expect(classifyUploadPack(gzipSync(Buffer.from(`0032want ${H}\n0009done\n`)), "gzip")).toBe("clone");
     expect(classifyUploadPack(Buffer.from("not gzip"), "gzip")).toBe("none");
+  });
+});
+
+describe("PackDetector", () => {
+  it("finds a sideband PACK header even when split across chunks", () => {
+    const d = new PackDetector();
+    d.push(Buffer.from("0008NAK\n0031\x01PA"));
+    expect(d.found).toBe(false);
+    d.push(Buffer.from("CK\x00\x00\x00\x02"));
+    expect(d.found).toBe(true);
+    d.push(Buffer.from("more"));
+    expect(d.found).toBe(true);
+  });
+
+  it("ignores responses without a pack", () => {
+    const d = new PackDetector();
+    d.push(Buffer.from(`0038ACK ${H} common\n0008NAK\n`));
+    expect(d.found).toBe(false);
   });
 });
 
