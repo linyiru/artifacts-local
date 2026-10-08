@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { join } from "node:path";
-import { build } from "esbuild";
+import { build } from "rolldown";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { handleBinding } from "../src/binding-rpc.ts";
 import { type RunningServer, startServer } from "../src/server.ts";
@@ -104,14 +104,13 @@ beforeAll(async () => {
   await slow.store.createRepo("default", "slow-src");
 
   const shim = await build({
-    entryPoints: [join(import.meta.dirname, "../worker/shim.ts")],
-    bundle: true,
-    format: "esm",
+    input: join(import.meta.dirname, "../worker/shim.ts"),
     platform: "neutral",
     external: ["cloudflare:workers"],
     write: false,
+    output: { format: "esm" },
   });
-  const shimCode = shim.outputFiles[0]!.text;
+  const shimCode = shim.output[0].code;
   const shimWorker = (name: string, url: string) => ({
     name,
     modules: [{ type: "ESModule" as const, path: "shim.js", contents: shimCode }],

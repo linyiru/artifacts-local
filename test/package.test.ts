@@ -127,17 +127,15 @@ void info;
   });
 
   it("lets a bundler build the wrangler shim from node_modules, as wrangler does", async () => {
-    const { build } = await import("esbuild");
+    const { build } = await import("rolldown");
     const out = await build({
-      entryPoints: [join(pkg, "worker/shim.ts")],
-      bundle: true,
-      format: "esm",
+      input: join(pkg, "worker/shim.ts"),
       platform: "neutral",
       external: ["cloudflare:workers"],
       write: false,
-      logLevel: "silent",
+      output: { format: "esm" },
     });
-    const code = out.outputFiles[0]!.text;
+    const code = out.output[0].code;
     expect(code).toMatch(/ArtifactsLocal = class extends WorkerEntrypoint|class ArtifactsLocal extends WorkerEntrypoint/);
     expect(code).toContain("/__local/binding/");
   });
