@@ -205,7 +205,10 @@ describe("repos", () => {
     const r = await call("DELETE", "/namespaces/default/repos/gone");
     expect(r.status).toBe(202);
     expect(r.json!.result).toEqual({ id });
-    expect((await call("DELETE", "/namespaces/default/repos/gone")).status).toBe(404);
+    const again = await call("DELETE", "/namespaces/default/repos/gone");
+    expect(again.status).toBe(202);
+    expect(again.json!.result).toEqual({ id });
+    expect((await call("DELETE", "/namespaces/default/repos/never-was")).status).toBe(404);
     expect((await call("GET", "/namespaces/default/repos/gone")).json!.errors[0].code).toBe(10200);
   });
 });
@@ -272,7 +275,10 @@ describe("git over HTTP", () => {
     const t2 = (await call("POST", "/namespaces/default/tokens", { repo: "expiry", scope: "read" })).json!.result;
     expect((await call("DELETE", `/namespaces/default/tokens/${t2.id}`)).json!.result).toEqual({ id: t2.id });
     expect((await git([...bearer(t2.plaintext), "ls-remote", remote])).code).not.toBe(0);
-    expect((await call("DELETE", `/namespaces/default/tokens/${t2.id}`)).status).toBe(404);
+    const again = await call("DELETE", `/namespaces/default/tokens/${t2.id}`);
+    expect(again.status).toBe(200);
+    expect(again.json!.result).toEqual({ id: t2.id });
+    expect((await call("DELETE", "/namespaces/default/tokens/zzzzzzzzzzzzzzzz")).status).toBe(404);
   });
 
   it("rejects pushes to read-only repos", async () => {

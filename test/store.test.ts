@@ -113,8 +113,10 @@ describe("getReadyRepo / deleteRepo", () => {
   it("reports NOT_FOUND and deletes idempotently", async () => {
     await expect(store.getReadyRepo("default", "nope")).rejects.toMatchObject({ code: "NOT_FOUND" });
     const { meta } = await store.createRepo("default", "app");
+    expect(await store.deletedRepoId("default", "app")).toBeNull();
     expect((await store.deleteRepo("default", "app"))?.id).toBe(meta.id);
     expect(await store.deleteRepo("default", "app")).toBeNull();
+    expect(await store.deletedRepoId("default", "app")).toBe(meta.id);
     await expect(store.getReadyRepo("default", "app")).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
@@ -348,8 +350,9 @@ describe("tokens", () => {
   it("revokes by id across a namespace", async () => {
     await store.createRepo("default", "other");
     const t = await store.createToken("default", "other", "read", 3600);
-    expect(await store.revokeTokenById("default", t.info.id)).toBe(true);
-    expect(await store.revokeTokenById("default", t.info.id)).toBe(false);
+    expect(await store.revokeTokenById("default", t.info.id)).toBe("revoked");
+    expect(await store.revokeTokenById("default", t.info.id)).toBe("already-revoked");
+    expect(await store.revokeTokenById("default", "nosuchtoken")).toBe("missing");
   });
 
   it("rejects tokens for missing repos and bad TTLs", async () => {

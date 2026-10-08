@@ -360,12 +360,26 @@ export class Store {
     await set("core.logAllRefUpdates", "false");
   }
 
+  private tombstonesPath(ns: string): string {
+    return join(this.namespaceDir(ns), "deleted.json");
+  }
+
+  /** ID of a repo that was deleted under this name, if any. Live REST answers 202 to a repeat delete. */
+  async deletedRepoId(nsName: unknown, repoName: unknown): Promise<string | null> {
+    const ns = assertNamespaceName(nsName);
+    const repo = assertRepoName(repoName);
+    return (await readJson<Record<string, string>>(this.tombstonesPath(ns)))?.[repo] ?? null;
+  }
+
   async deleteRepo(nsName: unknown, repoName: unknown): Promise<RepoMeta | null> {
     const ns = assertNamespaceName(nsName);
     const repo = assertRepoName(repoName);
     const meta = await this.readMeta(ns, repo);
     if (!meta) return null;
     await rm(this.gitDir(ns, repo), { recursive: true, force: true });
+    const tombstones = (await readJson<Record<string, string>>(this.tombstonesPath(ns))) ?? {};
+    tombstones[repo] = meta.id;
+    await writeJson(this.tombstonesPath(ns), tombstones);
     this.events.emit("cf.artifacts.repo.deleted", ns, repo, this.eventPayload(meta));
     return meta;
   }
@@ -593,18 +607,22 @@ export class Store {
     return true;
   }
 
-  /** REST revokes by id within a namespace, without naming the repo. */
-  async revokeTokenById(nsName: unknown, id: unknown): Promise<boolean> {
+  /**
+   * REST revokes by id within a namespace, without naming the repo. "missing" when no repo in the
+   * namespace has the token; revoking an already revoked token is not an error (live behaviour).
+   */
+  async revokeTokenById(nsName: unknown, id: unknown): Promise<"revoked" | "already-revoked" | "missing"> {
     const ns = assertNamespaceName(nsName);
     let cursor: string | undefined;
     do {
       const page = await this.listRepos(ns, { limit: 200, cursor });
       for (const m of page.repos) {
-        if (await this.revokeToken(ns, m.name, id)) return true;
+        if (await this.revokeToken(ns, m.name, id)) return "revoked";
+        if ((await this.readTokens(ns, m.name)).some((t) => t.id === id)) return "already-revoked";
       }
       cursor = page.nextCursor;
     } while (cursor);
-    return false;
+    return "missing";
   }
 
   /** Check a presented secret against a repo's tokens. Returns the granted scope or null. */

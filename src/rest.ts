@@ -221,7 +221,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
     }
     if (parts.length === 4 && method === "DELETE") {
       const id = parts[3]!;
-      if (!(await store.revokeTokenById(ns, id))) notFound("Token not found");
+      if ((await store.revokeTokenById(ns, id)) === "missing") notFound("Token not found");
       return { status: 200, result: { id } };
     }
     return noRoute();
@@ -266,8 +266,9 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
   if (parts.length === 4) {
     if (method === "GET") return { status: 200, result: repoInfo(store, await store.getReadyRepo(ns, name)) };
     if (method === "DELETE") {
-      const meta = (await store.deleteRepo(ns, name)) ?? notFound(`Repository ${name} not found`);
-      return { status: 202, result: { id: meta.id } };
+      const meta = await store.deleteRepo(ns, name);
+      const id = meta?.id ?? (await store.deletedRepoId(ns, name)) ?? notFound("Repository not found");
+      return { status: 202, result: { id } };
     }
     return noRoute();
   }

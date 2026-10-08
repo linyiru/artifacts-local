@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - REST repo list entries include `status`. List `result_info` is
   cursor-style while more pages follow and offset-style on the last page,
   as the live service returns it.
+- Repeating a REST repo delete answers `202` with the deleted repo's id, and
+  revoking an already revoked token answers `200`; unknown names and ids
+  still answer `404`.
 
 ## [0.1.0] - 2026-10-08
 
