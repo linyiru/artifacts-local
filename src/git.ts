@@ -37,7 +37,11 @@ export function git(args: string[], opts: GitOptions = {}): Promise<GitResult> {
     child.on("close", (code) => {
       resolve({ code: code ?? 1, stdout: Buffer.concat(out), stderr: Buffer.concat(err).toString() });
     });
-    child.stdin.end(opts.input ?? "");
+    // Many git commands never read stdin and may exit before we write; the exit code is the
+    // real result, so a broken pipe here is not an error.
+    child.stdin.on("error", () => {});
+    if (opts.input !== undefined) child.stdin.end(opts.input);
+    else child.stdin.end();
   });
 }
 

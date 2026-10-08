@@ -216,3 +216,11 @@ describe("log", () => {
     expect(await countObjects(bare)).toBeGreaterThan(5);
   });
 });
+
+describe("git runner stdin", () => {
+  it("tolerates commands that exit without reading a large stdin", async () => {
+    const r = await git(["--version"], { input: Buffer.alloc(4 * 1024 * 1024, 0x61) });
+    expect(r.code).toBe(0);
+    expect(r.stdout.toString()).toMatch(/^git version/);
+  });
+});
