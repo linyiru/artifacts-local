@@ -68,7 +68,7 @@ namespace delete is `204` with no body (live).
 | No credentials → 401; an invalid, expired, or revoked token → 403 `Invalid or expired token`; a read token pushing → 403 `Insufficient permissions` | live 2026-10-08 |
 | upload-pack: v1 and v2 | [docs] |
 | receive-pack: v1 only; v2 not supported | [docs] |
-| `filter` (partial clone) not supported | [docs] |
+| `filter` (partial clone) works over protocol v2 and is ignored over v0/v1 ("filtering not recognized by server") | [docs] (v1), live 2026-10-08 |
 | Read-only repos reject push | inferred from `read_only` |
 
 ## Repo content (binding and REST)

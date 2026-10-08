@@ -184,15 +184,22 @@ function runBackend(
     REMOTE_USER: "artifacts",
     REMOTE_ADDR: req.socket.remoteAddress ?? "127.0.0.1",
     ARTIFACTS_MAX_BLOB_BYTES: String(store.maxBlobBytes),
-    // Point at the packaged hooks per request rather than writing a path into each repo's config.
-    GIT_CONFIG_COUNT: "1",
-    GIT_CONFIG_KEY_0: "core.hooksPath",
-    GIT_CONFIG_VALUE_0: HOOKS_DIR,
   };
   if (req.headers["content-encoding"]) env.HTTP_CONTENT_ENCODING = String(req.headers["content-encoding"]);
+  // Per-request config: the packaged hooks (rather than a path written into each repo's config),
+  // and partial clone over protocol v2 only. Live honours `--filter` over v2 and ignores it over v0.
+  const config: [string, string][] = [["core.hooksPath", HOOKS_DIR]];
   // Artifacts supports protocol v2 for upload-pack only; receive-pack always speaks v0/v1.
   const proto = req.headers["git-protocol"];
-  if (route.service === "git-upload-pack" && typeof proto === "string") env.GIT_PROTOCOL = proto;
+  if (route.service === "git-upload-pack" && typeof proto === "string") {
+    env.GIT_PROTOCOL = proto;
+    if (/version=2/.test(proto)) config.push(["uploadpack.allowFilter", "true"]);
+  }
+  env.GIT_CONFIG_COUNT = String(config.length);
+  config.forEach(([k, v], i) => {
+    env[`GIT_CONFIG_KEY_${i}`] = k;
+    env[`GIT_CONFIG_VALUE_${i}`] = v;
+  });
 
   return new Promise((resolve, reject) => {
     const child = spawn("git", ["http-backend"], { env, stdio: ["pipe", "pipe", "pipe"] });

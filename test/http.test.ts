@@ -318,6 +318,26 @@ describe("git over HTTP", () => {
     expect(fetchV2.stderr).toMatch(/version 2/);
   });
 
+  it("honours --filter over protocol v2 and ignores it over v0, as live", async () => {
+    const { remote, token } = await createRepo("partial");
+    const w = await work();
+    await w.commit("init", { "big.txt": "x".repeat(10_000), "small.txt": "s" });
+    await w.run([...bearer(token), "push", "-q", remote, "main"]);
+
+    const v2 = join(tmp.path, "partial-v2");
+    const r2 = await git(["-c", "protocol.version=2", ...bearer(token), "clone", "-q", "--no-checkout", "--filter=blob:none", remote, v2]);
+    expect(r2.code, r2.stderr).toBe(0);
+    expect(r2.stderr).not.toContain("filtering not recognized");
+    expect((await git(["-C", v2, "config", "--get", "remote.origin.promisor"])).stdout.toString().trim()).toBe("true");
+    const blobs = await git(["-C", v2, "rev-list", "--objects", "--all", "--missing=print"]);
+    expect(blobs.stdout.toString()).toMatch(/^\?[0-9a-f]{40}$/m);
+
+    const v0 = join(tmp.path, "partial-v0");
+    const r0 = await git(["-c", "protocol.version=0", ...bearer(token), "clone", "-q", "--filter=blob:none", remote, v0]);
+    expect(r0.code, r0.stderr).toBe(0);
+    expect(r0.stderr).toContain("filtering not recognized by server");
+  });
+
   it("supports branch deletion and force push", async () => {
     const { remote, token } = await createRepo("rewrite");
     const w = await work();
