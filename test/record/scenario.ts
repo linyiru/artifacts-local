@@ -201,6 +201,13 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
       join(work, "pc2"),
     ]);
     await git("partial clone v2 promisor", ["-C", join(work, "pc2"), "config", "--get", "remote.origin.promisor"]);
+    // On-demand blob fetch, what ArtifactFS relies on: reading one missing blob fetches only that one.
+    const pc2 = join(work, "pc2");
+    await git("lazy fetch auth", ["-C", pc2, "config", "http.extraHeader", `Authorization: Bearer ${read}`]);
+    await git("lazy fetch missing before", ["-C", pc2, "rev-list", "--objects", "--all", "--missing=print"]);
+    const readmeBlob = (await git("lazy fetch blob id", ["-C", pc2, "rev-parse", "HEAD:README.md"])).stdout.trim();
+    await git("lazy fetch read blob", ["-C", pc2, "-c", "protocol.version=2", "cat-file", "-p", readmeBlob]);
+    await git("lazy fetch missing after", ["-C", pc2, "rev-list", "--objects", "--all", "--missing=print"]);
     await git("partial clone v0", [
       "-c",
       "protocol.version=0",

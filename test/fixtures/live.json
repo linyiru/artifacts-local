@@ -1195,6 +1195,41 @@
     },
     {
       "kind": "git",
+      "label": "lazy fetch auth",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "lazy fetch missing before",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\n<sha>\n<sha> v1\n<sha> \n<sha> src\n<sha> \n<sha> src\n?<sha>\n?<sha>\n?<sha>\n?<sha>\n"
+    },
+    {
+      "kind": "git",
+      "label": "lazy fetch blob id",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\n"
+    },
+    {
+      "kind": "git",
+      "label": "lazy fetch read blob",
+      "code": 0,
+      "remote": [],
+      "stdout": "# probe\n"
+    },
+    {
+      "kind": "git",
+      "label": "lazy fetch missing after",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\n<sha>\n<sha> v1\n<sha> \n<sha> README.md\n<sha> src\n<sha> \n<sha> src\n?<sha>\n?<sha>\n?<sha>\n"
+    },
+    {
+      "kind": "git",
       "label": "partial clone v0",
       "code": 0,
       "remote": [
