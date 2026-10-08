@@ -1,4 +1,7 @@
-// Event envelopes in the shape of the Artifacts event subscriptions docs.
+// Event envelopes in the shape of the Artifacts event subscriptions docs, with the field order
+// the live service delivers (type, source, metadata, payload; checked 2026-10-08).
+
+import { Subscriptions } from "./subscriptions.ts";
 
 export type ArtifactsEventType =
   | "cf.artifacts.repo.created"
@@ -13,14 +16,14 @@ export type ArtifactsEventType =
 
 export interface ArtifactsEvent {
   type: ArtifactsEventType;
-  source: { type: "artifacts" | "artifacts.repo"; namespace: string; repoName: string };
-  payload: Record<string, unknown>;
+  source: { namespace: string; repoName: string; type: "artifacts" | "artifacts.repo" };
   metadata: {
     accountId: string;
     eventSubscriptionId: string;
     eventSchemaVersion: 1;
     eventTimestamp: string;
   };
+  payload: Record<string, unknown>;
 }
 
 // Account-level events come from the `artifacts` source; the rest from `artifacts.repo`.
@@ -37,6 +40,8 @@ export class EventBus {
   readonly accountId: string;
   readonly history: ArtifactsEvent[] = [];
   readonly maxHistory: number;
+  /** Event subscriptions; delivery is synchronous, so a message is queued when the operation ends. */
+  readonly subscriptions: Subscriptions;
   private listeners = new Set<EventListener>();
   private now: () => number;
 
@@ -44,6 +49,7 @@ export class EventBus {
     this.accountId = accountId;
     this.now = now;
     this.maxHistory = maxHistory;
+    this.subscriptions = new Subscriptions(now);
   }
 
   subscribe(listener: EventListener): () => void {
@@ -59,17 +65,18 @@ export class EventBus {
   ): ArtifactsEvent {
     const event: ArtifactsEvent = {
       type,
-      source: { type: ACCOUNT_LEVEL.has(type) ? "artifacts" : "artifacts.repo", namespace, repoName },
-      payload,
+      source: { namespace, repoName, type: ACCOUNT_LEVEL.has(type) ? "artifacts" : "artifacts.repo" },
       metadata: {
         accountId: this.accountId,
         eventSubscriptionId: "local",
         eventSchemaVersion: 1,
         eventTimestamp: new Date(this.now()).toISOString(),
       },
+      payload,
     };
     this.history.push(event);
     if (this.history.length > this.maxHistory) this.history.shift();
+    this.subscriptions.deliver(event);
     for (const l of this.listeners) {
       // A failing subscriber must not break the operation that emitted the event.
       Promise.resolve()

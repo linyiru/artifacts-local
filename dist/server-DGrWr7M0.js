@@ -1,11 +1,11 @@
 import { t as ArtifactsError } from "./errors-FRdRD_TM.js";
 import { spawn } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { createHash, randomBytes } from "node:crypto";
 //#region src/names.ts
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 function isValidNamespaceName(name) {
@@ -466,6 +466,108 @@ async function handleBinding(store, req, res, url) {
 	return true;
 }
 //#endregion
+//#region src/subscriptions.ts
+const ACCOUNT_EVENTS = [
+	"repo.created",
+	"repo.deleted",
+	"repo.forked",
+	"repo.imported"
+];
+const REPO_EVENTS = [
+	"pushed",
+	"cloned",
+	"fetched",
+	"token.created",
+	"token.revoked"
+];
+var SubscriptionError = class extends Error {};
+/** `cf.artifacts.repo.created` → `repo.created`; `cf.artifacts.repo.pushed` → `pushed`. */
+function shortEventName(type) {
+	const rest = type.replace(/^cf\.artifacts\./, "");
+	return rest.startsWith("repo.") && !ACCOUNT_EVENTS.includes(rest) ? rest.slice(5) : rest;
+}
+const hexId = () => randomBytes(16).toString("hex");
+var Subscriptions = class {
+	subs = /* @__PURE__ */ new Map();
+	feeds = /* @__PURE__ */ new Map();
+	seq = 0;
+	now;
+	maxPerQueue;
+	constructor(now = Date.now, maxPerQueue = 1e4) {
+		this.now = now;
+		this.maxPerQueue = maxPerQueue;
+	}
+	create(queue, input) {
+		if (!queue) throw new SubscriptionError("queue is required");
+		const source = input.source;
+		let parsed;
+		let allowed;
+		if (source?.type === "artifacts") {
+			parsed = { type: "artifacts" };
+			allowed = ACCOUNT_EVENTS;
+		} else if (source?.type === "artifacts.repo") {
+			if (typeof source.namespace !== "string" || !source.namespace || typeof source.repo_name !== "string" || !source.repo_name) throw new SubscriptionError("artifacts.repo subscriptions need source.namespace and source.repo_name");
+			parsed = {
+				type: "artifacts.repo",
+				namespace: source.namespace,
+				repo_name: source.repo_name
+			};
+			allowed = REPO_EVENTS;
+		} else throw new SubscriptionError("source.type must be \"artifacts\" or \"artifacts.repo\"");
+		const events = input.events === void 0 ? [...allowed] : input.events;
+		if (!Array.isArray(events) || events.length === 0 || !events.every((e) => typeof e === "string" && allowed.includes(e))) throw new SubscriptionError(`events must be a non-empty list of: ${allowed.join(", ")}`);
+		const sub = {
+			id: hexId(),
+			name: input.name ?? `${queue}-${parsed.type}`,
+			enabled: input.enabled ?? true,
+			queue,
+			source: parsed,
+			events: [...new Set(events)],
+			created_at: new Date(this.now()).toISOString()
+		};
+		this.subs.set(sub.id, sub);
+		return sub;
+	}
+	list(queue) {
+		return [...this.subs.values()].filter((s) => !queue || s.queue === queue);
+	}
+	delete(id) {
+		return this.subs.delete(id);
+	}
+	/** Copy `event` into the feed of every enabled subscription it matches. */
+	deliver(event) {
+		const name = shortEventName(event.type);
+		for (const sub of this.subs.values()) {
+			if (!sub.enabled || !sub.events.includes(name)) continue;
+			if (sub.source.type !== event.source.type) continue;
+			if (sub.source.type === "artifacts.repo" && (sub.source.namespace !== event.source.namespace || sub.source.repo_name !== event.source.repoName)) continue;
+			const feed = this.feeds.get(sub.queue) ?? [];
+			feed.push({
+				seq: ++this.seq,
+				id: hexId(),
+				timestamp_ms: this.now(),
+				body: {
+					...event,
+					metadata: {
+						...event.metadata,
+						eventSubscriptionId: sub.id
+					}
+				}
+			});
+			if (feed.length > this.maxPerQueue) feed.shift();
+			this.feeds.set(sub.queue, feed);
+		}
+	}
+	/** Messages in `queue` after position `after`, oldest first. */
+	pull(queue, after = 0, limit = 100) {
+		const messages = (this.feeds.get(queue) ?? []).filter((m) => m.seq > after).slice(0, limit);
+		return {
+			messages,
+			next: messages.at(-1)?.seq ?? after
+		};
+	}
+};
+//#endregion
 //#region src/events.ts
 const ACCOUNT_LEVEL = /* @__PURE__ */ new Set([
 	"cf.artifacts.repo.created",
@@ -477,12 +579,15 @@ var EventBus = class {
 	accountId;
 	history = [];
 	maxHistory;
+	/** Event subscriptions; delivery is synchronous, so a message is queued when the operation ends. */
+	subscriptions;
 	listeners = /* @__PURE__ */ new Set();
 	now;
 	constructor(accountId, now = Date.now, maxHistory = 1e3) {
 		this.accountId = accountId;
 		this.now = now;
 		this.maxHistory = maxHistory;
+		this.subscriptions = new Subscriptions(now);
 	}
 	subscribe(listener) {
 		this.listeners.add(listener);
@@ -492,20 +597,21 @@ var EventBus = class {
 		const event = {
 			type,
 			source: {
-				type: ACCOUNT_LEVEL.has(type) ? "artifacts" : "artifacts.repo",
 				namespace,
-				repoName
+				repoName,
+				type: ACCOUNT_LEVEL.has(type) ? "artifacts" : "artifacts.repo"
 			},
-			payload,
 			metadata: {
 				accountId: this.accountId,
 				eventSubscriptionId: "local",
 				eventSchemaVersion: 1,
 				eventTimestamp: new Date(this.now()).toISOString()
-			}
+			},
+			payload
 		};
 		this.history.push(event);
 		if (this.history.length > this.maxHistory) this.history.shift();
+		this.subscriptions.deliver(event);
 		for (const l of this.listeners) Promise.resolve().then(() => l(event)).catch(() => {});
 		return event;
 	}

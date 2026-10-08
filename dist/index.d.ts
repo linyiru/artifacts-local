@@ -24,28 +24,78 @@ export declare class ArtifactsError extends Error {
 }
 export declare function isArtifactsError(err: unknown): err is ArtifactsError;
 //#endregion
+//#region src/subscriptions.d.ts
+type SubscriptionSource = {
+  type: "artifacts";
+} | {
+  type: "artifacts.repo";
+  namespace: string;
+  repo_name: string;
+};
+interface Subscription {
+  id: string;
+  name: string;
+  enabled: boolean;
+  queue: string;
+  source: SubscriptionSource;
+  events: string[];
+  created_at: string;
+}
+interface QueueMessage {
+  /** Position in this queue's feed; pull with `after` to resume. */
+  seq: number;
+  id: string;
+  timestamp_ms: number;
+  body: ArtifactsEvent;
+}
+declare class Subscriptions {
+  private subs;
+  private feeds;
+  private seq;
+  private readonly now;
+  private readonly maxPerQueue;
+  constructor(now?: () => number, maxPerQueue?: number);
+  create(queue: string, input: {
+    name?: string;
+    enabled?: boolean;
+    source?: unknown;
+    events?: unknown;
+  }): Subscription;
+  list(queue?: string): Subscription[];
+  delete(id: string): boolean;
+  /** Copy `event` into the feed of every enabled subscription it matches. */
+  deliver(event: ArtifactsEvent): void;
+  /** Messages in `queue` after position `after`, oldest first. */
+  pull(queue: string, after?: number, limit?: number): {
+    messages: QueueMessage[];
+    next: number;
+  };
+}
+//#endregion
 //#region src/events.d.ts
 type ArtifactsEventType = "cf.artifacts.repo.created" | "cf.artifacts.repo.deleted" | "cf.artifacts.repo.forked" | "cf.artifacts.repo.imported" | "cf.artifacts.repo.pushed" | "cf.artifacts.repo.cloned" | "cf.artifacts.repo.fetched" | "cf.artifacts.repo.token.created" | "cf.artifacts.repo.token.revoked";
 interface ArtifactsEvent {
   type: ArtifactsEventType;
   source: {
-    type: "artifacts" | "artifacts.repo";
     namespace: string;
     repoName: string;
+    type: "artifacts" | "artifacts.repo";
   };
-  payload: Record<string, unknown>;
   metadata: {
     accountId: string;
     eventSubscriptionId: string;
     eventSchemaVersion: 1;
     eventTimestamp: string;
   };
+  payload: Record<string, unknown>;
 }
 type EventListener = (event: ArtifactsEvent) => void | Promise<void>;
 export declare class EventBus {
   readonly accountId: string;
   readonly history: ArtifactsEvent[];
   readonly maxHistory: number;
+  /** Event subscriptions; delivery is synchronous, so a message is queued when the operation ends. */
+  readonly subscriptions: Subscriptions;
   private listeners;
   private now;
   constructor(accountId: string, now?: () => number, maxHistory?: number);
