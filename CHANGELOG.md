@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-08
+
 ### Added
 
 - A package entry point: `import { startServer, createArtifactsBinding } from
@@ -91,6 +93,7 @@ service and the docs disagree, the emulator now follows the live service.
 - Contract tests that run against the emulator or the live service, a
   `wrangler dev` end-to-end script, and CI.
 
-[unreleased]: https://github.com/linyiru/artifacts-local/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/linyiru/artifacts-local/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/linyiru/artifacts-local/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/linyiru/artifacts-local/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/linyiru/artifacts-local/releases/tag/v0.1.0

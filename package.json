@@ -1,6 +1,6 @@
 {
   "name": "artifacts-local",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Local emulator for Cloudflare Artifacts: REST control plane, Git smart HTTP, and a Workers binding shim.",
   "type": "module",

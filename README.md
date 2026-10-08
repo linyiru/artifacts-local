@@ -55,7 +55,7 @@ Node 24+ and `git` with `git http-backend`. No runtime dependencies.
 ## Install
 
 ```sh
-npm install -D github:linyiru/artifacts-local   # or pnpm add -D / bun add -d; pin a tag or commit with #<ref>
+npm install -D github:linyiru/artifacts-local#v0.2.1   # or pnpm add -D / bun add -d
 ```
 
 The package runs from compiled JavaScript in `dist/`, so plain `node` works from `node_modules`.
