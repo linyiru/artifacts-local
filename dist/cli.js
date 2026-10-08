@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { a as handleBinding, t as startServer } from "./server-DGrWr7M0.js";
+import { a as handleBinding, t as startServer } from "./server-hl8JFtPr.js";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 //#region src/cli.ts
@@ -15,6 +15,8 @@ Options:
   --api-token <token>     Bearer token to require on REST calls (default: accept any)
   --public-url <url>      Base for returned remote URLs (default: the listen address)
   --webhook <url>         POST every event to this URL
+  --subscribe <spec>      Subscribe a queue to events (repeatable). <spec> is
+                          <queue>:artifacts or <queue>:artifacts.repo:<namespace>/<repo>
   --async-delay <ms>      Hold forks/imports in progress this long
   --allow-insecure-import Allow importing from file paths and http:// URLs
   --track-push-times      Update last_push_at on push (the live service does not)
@@ -38,6 +40,10 @@ const { values, positionals } = parseArgs({
 		"api-token": { type: "string" },
 		"public-url": { type: "string" },
 		webhook: { type: "string" },
+		subscribe: {
+			type: "string",
+			multiple: true
+		},
 		"async-delay": { type: "string" },
 		"allow-insecure-import": {
 			type: "boolean",
@@ -54,6 +60,24 @@ const { values, positionals } = parseArgs({
 		}
 	}
 });
+function parseSubscribe(spec) {
+	const [queue, type, target] = spec.split(":");
+	if (type === "artifacts" && queue) return {
+		queue,
+		source: { type }
+	};
+	const [namespace, repo_name] = (target ?? "").split("/");
+	if (type === "artifacts.repo" && queue && namespace && repo_name) return {
+		queue,
+		source: {
+			type,
+			namespace,
+			repo_name
+		}
+	};
+	process.stderr.write(`invalid --subscribe ${JSON.stringify(spec)}\n${USAGE}`);
+	process.exit(1);
+}
 if (values.help || positionals[0] !== "serve") {
 	process.stdout.write(USAGE);
 	process.exit(values.help ? 0 : 1);
@@ -66,6 +90,7 @@ const server = await startServer({
 	apiToken: values["api-token"],
 	publicUrl: values["public-url"],
 	webhookUrl: values.webhook,
+	subscriptions: (values.subscribe ?? []).map(parseSubscribe),
 	asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : void 0,
 	allowInsecureImport: values["allow-insecure-import"],
 	trackPushTimes: values["track-push-times"]

@@ -13,6 +13,8 @@ export interface ServerOptions extends RestOptions {
   publicUrl?: string;
   /** POST every event to this URL (a local stand-in for an event subscription). */
   webhookUrl?: string;
+  /** Event subscriptions to create at start, as `subscriptions.create(queue, …)` takes them. */
+  subscriptions?: { queue: string; source: unknown; events?: string[] }[];
   asyncDelayMs?: number;
   allowInsecureImport?: boolean;
   maxBlobBytes?: number;
@@ -53,6 +55,35 @@ async function handleLocal(store: Store, req: IncomingMessage, res: ServerRespon
     );
     return true;
   }
+  const queue = /^\/__local\/queues\/([^/]+)\/(subscriptions|messages)(?:\/([^/]+))?$/.exec(url.pathname);
+  if (queue) {
+    const [, name, kind, id] = queue as unknown as [string, string, string, string | undefined];
+    const subs = store.events.subscriptions;
+    if (kind === "messages" && req.method === "GET" && !id) {
+      const after = Number(url.searchParams.get("after") ?? 0);
+      const limit = Number(url.searchParams.get("limit") ?? 100);
+      json(200, subs.pull(decodeURIComponent(name), after, limit));
+      return true;
+    }
+    if (kind === "subscriptions" && !id && req.method === "GET") {
+      json(200, subs.list(decodeURIComponent(name)));
+      return true;
+    }
+    if (kind === "subscriptions" && !id && req.method === "POST") {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(c as Buffer);
+      try {
+        json(201, subs.create(decodeURIComponent(name), JSON.parse(Buffer.concat(chunks).toString() || "{}")));
+      } catch (e) {
+        json(400, { error: e instanceof Error ? e.message : String(e) });
+      }
+      return true;
+    }
+    if (kind === "subscriptions" && id && req.method === "DELETE") {
+      json(subs.delete(id) ? 200 : 404, { id });
+      return true;
+    }
+  }
   return false;
 }
 
@@ -60,6 +91,7 @@ export async function startServer(opts: ServerOptions, extra: Handler[] = []): P
   const now = opts.now ?? Date.now;
   const events = new EventBus(opts.accountId ?? "local", now);
   if (opts.webhookUrl) events.subscribe(webhookListener(opts.webhookUrl));
+  for (const s of opts.subscriptions ?? []) events.subscriptions.create(s.queue, s);
   const store = new Store({
     dataDir: opts.dataDir,
     accountId: opts.accountId,

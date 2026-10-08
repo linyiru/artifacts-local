@@ -16,6 +16,8 @@ Options:
   --api-token <token>     Bearer token to require on REST calls (default: accept any)
   --public-url <url>      Base for returned remote URLs (default: the listen address)
   --webhook <url>         POST every event to this URL
+  --subscribe <spec>      Subscribe a queue to events (repeatable). <spec> is
+                          <queue>:artifacts or <queue>:artifacts.repo:<namespace>/<repo>
   --async-delay <ms>      Hold forks/imports in progress this long
   --allow-insecure-import Allow importing from file paths and http:// URLs
   --track-push-times      Update last_push_at on push (the live service does not)
@@ -31,12 +33,24 @@ const { values, positionals } = parseArgs({
     "api-token": { type: "string" },
     "public-url": { type: "string" },
     webhook: { type: "string" },
+    subscribe: { type: "string", multiple: true },
     "async-delay": { type: "string" },
     "allow-insecure-import": { type: "boolean", default: false },
     "track-push-times": { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
   },
 });
+
+function parseSubscribe(spec: string) {
+  const [queue, type, target] = spec.split(":");
+  if (type === "artifacts" && queue) return { queue, source: { type } };
+  const [namespace, repo_name] = (target ?? "").split("/");
+  if (type === "artifacts.repo" && queue && namespace && repo_name) {
+    return { queue, source: { type, namespace, repo_name } };
+  }
+  process.stderr.write(`invalid --subscribe ${JSON.stringify(spec)}\n${USAGE}`);
+  process.exit(1);
+}
 
 if (values.help || positionals[0] !== "serve") {
   process.stdout.write(USAGE);
@@ -52,6 +66,7 @@ const server = await startServer(
     apiToken: values["api-token"],
     publicUrl: values["public-url"],
     webhookUrl: values.webhook,
+    subscriptions: (values.subscribe ?? []).map(parseSubscribe),
     asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : undefined,
     allowInsecureImport: values["allow-insecure-import"],
     trackPushTimes: values["track-push-times"],

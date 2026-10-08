@@ -2138,12 +2138,42 @@ async function handleLocal(store, req, res, url) {
 		json(200, store.events.history.filter((e) => !type || e.type === type));
 		return true;
 	}
+	const queue = /^\/__local\/queues\/([^/]+)\/(subscriptions|messages)(?:\/([^/]+))?$/.exec(url.pathname);
+	if (queue) {
+		const [, name, kind, id] = queue;
+		const subs = store.events.subscriptions;
+		if (kind === "messages" && req.method === "GET" && !id) {
+			const after = Number(url.searchParams.get("after") ?? 0);
+			const limit = Number(url.searchParams.get("limit") ?? 100);
+			json(200, subs.pull(decodeURIComponent(name), after, limit));
+			return true;
+		}
+		if (kind === "subscriptions" && !id && req.method === "GET") {
+			json(200, subs.list(decodeURIComponent(name)));
+			return true;
+		}
+		if (kind === "subscriptions" && !id && req.method === "POST") {
+			const chunks = [];
+			for await (const c of req) chunks.push(c);
+			try {
+				json(201, subs.create(decodeURIComponent(name), JSON.parse(Buffer.concat(chunks).toString() || "{}")));
+			} catch (e) {
+				json(400, { error: e instanceof Error ? e.message : String(e) });
+			}
+			return true;
+		}
+		if (kind === "subscriptions" && id && req.method === "DELETE") {
+			json(subs.delete(id) ? 200 : 404, { id });
+			return true;
+		}
+	}
 	return false;
 }
 async function startServer(opts, extra = []) {
 	const now = opts.now ?? Date.now;
 	const events = new EventBus(opts.accountId ?? "local", now);
 	if (opts.webhookUrl) events.subscribe(webhookListener(opts.webhookUrl));
+	for (const s of opts.subscriptions ?? []) events.subscriptions.create(s.queue, s);
 	const store = new Store({
 		dataDir: opts.dataDir,
 		accountId: opts.accountId,

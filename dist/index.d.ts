@@ -281,6 +281,12 @@ interface ServerOptions extends RestOptions {
   publicUrl?: string;
   /** POST every event to this URL (a local stand-in for an event subscription). */
   webhookUrl?: string;
+  /** Event subscriptions to create at start, as `subscriptions.create(queue, …)` takes them. */
+  subscriptions?: {
+    queue: string;
+    source: unknown;
+    events?: string[];
+  }[];
   asyncDelayMs?: number;
   allowInsecureImport?: boolean;
   maxBlobBytes?: number;

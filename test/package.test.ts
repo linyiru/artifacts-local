@@ -36,6 +36,47 @@ describe("installed package", () => {
     expect(bin.stdout).toContain("artifacts-local serve [options]");
   });
 
+  it("subscribes queues from the CLI with --subscribe", async () => {
+    const child = spawn(
+      process.execPath,
+      [
+        join(pkg, "dist/cli.js"),
+        "serve",
+        "--port",
+        "0",
+        "--data-dir",
+        join(tmp.path, "cli-subs"),
+        "--subscribe",
+        "events:artifacts",
+        "--subscribe",
+        "events:artifacts.repo:default/app",
+      ],
+      { cwd: app },
+    );
+    try {
+      const url = await new Promise<string>((resolve, reject) => {
+        let out = "";
+        child.stdout.on("data", (d) => {
+          out += d;
+          const m = /listening on (http:\/\/\S+)/.exec(out);
+          if (m) resolve(m[1]!);
+        });
+        child.on("exit", (code) => reject(new Error(`CLI exited with ${code}`)));
+      });
+      const subs = (await (await fetch(`${url}/__local/queues/events/subscriptions`)).json()) as { source: unknown }[];
+      expect(subs.map((s) => s.source)).toEqual([
+        { type: "artifacts" },
+        { type: "artifacts.repo", namespace: "default", repo_name: "app" },
+      ]);
+    } finally {
+      child.kill();
+    }
+    const bad = await run(process.execPath, [join(pkg, "dist/cli.js"), "serve", "--subscribe", "nope"], {
+      cwd: app,
+    }).catch((e: { code: number; stderr: string }) => e);
+    expect(bad).toMatchObject({ code: 1, stderr: expect.stringContaining('invalid --subscribe "nope"') });
+  });
+
   it("serves REST from the installed CLI", async () => {
     const child = spawn(
       process.execPath,

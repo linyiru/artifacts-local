@@ -679,6 +679,65 @@ describe("fork and import routes", () => {
   });
 });
 
+describe("event subscription routes", () => {
+  it("subscribes queues, delivers matching events, and resumes after a position", async () => {
+    const s = await startServer({
+      dataDir: join(tmp.path, "subs"),
+      subscriptions: [{ queue: "boot", source: { type: "artifacts" }, events: ["repo.created"] }],
+    });
+    try {
+      const local = (path: string, init?: RequestInit) => fetch(`${s.url}/__local/queues${path}`, init);
+      expect(((await (await local("/boot/subscriptions")).json()) as unknown[]).length).toBe(1);
+
+      const created = await local("/events/subscriptions", {
+        method: "POST",
+        body: JSON.stringify({ source: { type: "artifacts.repo", namespace: "default", repo_name: "subbed" } }),
+      });
+      expect(created.status).toBe(201);
+      const sub = (await created.json()) as { id: string; events: string[] };
+      expect(sub.events).toContain("pushed");
+
+      const r = await fetch(`${s.url}/client/v4/accounts/a/artifacts/namespaces/default/repos`, {
+        method: "POST",
+        headers: { authorization: "Bearer x", "content-type": "application/json" },
+        body: JSON.stringify({ name: "subbed" }),
+      });
+      const { remote, token } = ((await r.json()) as { result: { remote: string; token: string } }).result;
+      const w = await work();
+      await w.commit("one");
+      await w.run([...bearer(token), "push", "-q", remote, "main"]);
+
+      const pull = async (queue: string, after = 0) =>
+        (await (await local(`/${queue}/messages?after=${after}`)).json()) as {
+          messages: { seq: number; body: { type: string; metadata: { eventSubscriptionId: string } } }[];
+          next: number;
+        };
+      const events = await pull("events");
+      expect(events.messages.map((m) => m.body.type)).toEqual([
+        "cf.artifacts.repo.token.created",
+        "cf.artifacts.repo.pushed",
+      ]);
+      expect(events.messages.every((m) => m.body.metadata.eventSubscriptionId === sub.id)).toBe(true);
+      expect((await pull("events", events.next)).messages).toEqual([]);
+      expect((await pull("boot")).messages.map((m) => m.body.type)).toEqual(["cf.artifacts.repo.created"]);
+
+      const bad = await local("/events/subscriptions", {
+        method: "POST",
+        body: JSON.stringify({ source: { type: "kv" } }),
+      });
+      expect(bad.status).toBe(400);
+      expect(((await bad.json()) as { error: string }).error).toMatch(/source.type/);
+      const malformed = await local("/events/subscriptions", { method: "POST", body: "{nope" });
+      expect(malformed.status).toBe(400);
+      expect((await local(`/events/subscriptions/${sub.id}`, { method: "DELETE" })).status).toBe(200);
+      expect((await local(`/events/subscriptions/${sub.id}`, { method: "DELETE" })).status).toBe(404);
+      expect((await local("/events/subscriptions/x", { method: "GET" })).status).toBe(404);
+    } finally {
+      await s.close();
+    }
+  });
+});
+
 describe("local admin routes", () => {
   it("serves health and filtered event history", async () => {
     expect(await (await fetch(`${srv.url}/__local/health`)).json()).toEqual({ ok: true });
