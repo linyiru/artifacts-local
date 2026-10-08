@@ -2,6 +2,12 @@
 // the real binding in production and the artifacts-local shim under `wrangler dev -e local`.
 
 interface Env {
+  /** Where the queue consumer keeps what it received (local env only). */
+  RECEIVED?: {
+    put(key: string, value: string): Promise<void>;
+    get(key: string): Promise<string | null>;
+    list(): Promise<{ keys: { name: string }[] }>;
+  };
   ARTIFACTS: {
     create(name: string, opts?: { description?: string }): Promise<{ name: string; remote: string; token: string }>;
     get(name: string): Promise<{
@@ -39,11 +45,24 @@ export default {
         }
         case "/list":
           return Response.json(await env.ARTIFACTS.list());
+        case "/events": {
+          // Events the queue consumer received, oldest first.
+          const keys = (await env.RECEIVED?.list())?.keys.map((k) => k.name).toSorted() ?? [];
+          const events = await Promise.all(keys.map(async (k) => JSON.parse((await env.RECEIVED!.get(k))!)));
+          return Response.json(events);
+        }
       }
-      return new Response("routes: /create /readme /log /fork /list  (?repo=name)\n");
+      return new Response("routes: /create /readme /log /fork /list /events  (?repo=name)\n");
     } catch (e) {
       const err = e as { name?: string; code?: string; message?: string };
       return Response.json({ error: { name: err.name, code: err.code, message: err.message } }, { status: 400 });
+    }
+  },
+  // Artifacts events, delivered by an event subscription (in production) or the shim (locally).
+  async queue(batch: { messages: { id: string; body: unknown; ack(): void }[] }, env: Env): Promise<void> {
+    for (const m of batch.messages) {
+      await env.RECEIVED?.put(`${Date.now()}-${m.id}`, JSON.stringify(m.body));
+      m.ack();
     }
   },
 };

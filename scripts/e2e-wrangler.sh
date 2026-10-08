@@ -24,7 +24,8 @@ for p in "$EMU_PORT" "$DEV_PORT"; do
   if lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then echo "port $p is in use" >&2; exit 1; fi
 done
 
-node "$ROOT/src/cli.ts" serve --port "$EMU_PORT" --data-dir "$WORK/data" >"$WORK/emu.log" 2>&1 &
+node "$ROOT/src/cli.ts" serve --port "$EMU_PORT" --data-dir "$WORK/data" \
+  --subscribe artifacts-events:artifacts --subscribe artifacts-events:artifacts.repo:default/e2e >"$WORK/emu.log" 2>&1 &
 EMU_PID=$!
 env -u CLOUDFLARE_API_TOKEN npx -y "$WRANGLER" dev -e local \
   -c "$ROOT/examples/hello/wrangler.jsonc" -c "$ROOT/worker/wrangler.jsonc" \
@@ -54,4 +55,12 @@ expect "fork" "$(curl -sf "$APP/fork?repo=e2e&to=e2e-fork" | jq -r .name)" "e2e-
 expect "list" "$(curl -sf "$APP/list" | jq -c '[.repos[]|[.name,.status]]')" '[["e2e-fork","ready"],["e2e","ready"]]'
 expect "missing repo code" "$(curl -s "$APP/readme?repo=nope" | jq -r .error.code)" "NOT_FOUND"
 expect "pushed event" "$(curl -sf "http://127.0.0.1:$EMU_PORT/__local/events?type=cf.artifacts.repo.pushed" | jq -r '.[0].payload.ref')" "refs/heads/main"
+
+# Events reach the app's queue() consumer through the local Queue the shim feeds.
+for _ in $(seq 1 50); do
+  curl -sf "$APP/events" | jq -e 'map(.type) | index("cf.artifacts.repo.pushed")' >/dev/null && break
+  sleep 0.2
+done
+expect "queue consumer got pushed" "$(curl -sf "$APP/events" | jq -r '[.[] | select(.type == "cf.artifacts.repo.pushed")][0].payload.ref')" "refs/heads/main"
+expect "queue consumer got created" "$(curl -sf "$APP/events" | jq -r '[.[].type] | index("cf.artifacts.repo.created") != null')" "true"
 echo "e2e: all checks passed"

@@ -1,22 +1,32 @@
 {
   // The artifacts-local shim as its own Worker. Run it next to your app with
   //   wrangler dev -e local -c <your app>/wrangler.jsonc -c node_modules/artifacts-local/worker/wrangler.jsonc
+  // It serves env.ARTIFACTS, and moves the emulator's events for ARTIFACTS_EVENTS_QUEUE into the
+  // artifacts-events queue (start the emulator with --subscribe artifacts-events:artifacts …).
   "name": "artifacts-local-shim",
   "main": "shim.ts",
   "compatibility_date": "2026-09-01",
   "vars": {
     "ARTIFACTS_LOCAL_URL": "http://127.0.0.1:8788",
     "ARTIFACTS_NAMESPACE": "default",
+    "ARTIFACTS_EVENTS_QUEUE": "artifacts-events",
   },
+  "queues": { "producers": [{ "binding": "ARTIFACTS_EVENTS", "queue": "artifacts-events" }] },
+  "durable_objects": { "bindings": [{ "name": "ARTIFACTS_EVENT_PUMP", "class_name": "ArtifactsEventPump" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ArtifactsEventPump"] }],
   "env": {
     // Wrangler appends the environment to a Worker's name (artifacts-local-shim-local), which
-    // would break the app's service binding. Pin the name for the `local` environment.
+    // would break the app's service binding. Pin the name for the `local` environment. Bindings
+    // are not inherited by environments, so they are repeated here.
     "local": {
       "name": "artifacts-local-shim",
       "vars": {
         "ARTIFACTS_LOCAL_URL": "http://127.0.0.1:8788",
         "ARTIFACTS_NAMESPACE": "default",
+        "ARTIFACTS_EVENTS_QUEUE": "artifacts-events",
       },
+      "queues": { "producers": [{ "binding": "ARTIFACTS_EVENTS", "queue": "artifacts-events" }] },
+      "durable_objects": { "bindings": [{ "name": "ARTIFACTS_EVENT_PUMP", "class_name": "ArtifactsEventPump" }] },
     },
   },
 }

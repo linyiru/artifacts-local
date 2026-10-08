@@ -16,6 +16,9 @@
           "props": { "namespace": "default" },
         },
       ],
+      // Production would subscribe this queue to Artifacts events; locally the shim feeds it.
+      "queues": { "consumers": [{ "queue": "artifacts-events", "max_batch_timeout": 1 }] },
+      "kv_namespaces": [{ "binding": "RECEIVED", "id": "local-received" }],
     },
   },
 }
