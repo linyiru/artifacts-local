@@ -47,7 +47,10 @@ async function handleLocal(store: Store, req: IncomingMessage, res: ServerRespon
       return true;
     }
     const type = url.searchParams.get("type");
-    json(200, store.events.history.filter((e) => !type || e.type === type));
+    json(
+      200,
+      store.events.history.filter((e) => !type || e.type === type),
+    );
     return true;
   }
   return false;
@@ -82,7 +85,8 @@ export async function startServer(opts: ServerOptions, extra: Handler[] = []): P
       }
       sendError(res, 404, [{ code: 7000, message: "No route for that URI" }]);
     } catch (e) {
-      if (!res.headersSent) sendError(res, 500, [{ code: 10400, message: e instanceof Error ? e.message : "Internal error" }]);
+      if (!res.headersSent)
+        sendError(res, 500, [{ code: 10400, message: e instanceof Error ? e.message : "Internal error" }]);
       else res.end();
     }
   });

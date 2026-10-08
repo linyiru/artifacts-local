@@ -61,7 +61,16 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     } else if (contentType.startsWith("text/")) {
       parsed = buf.toString();
     }
-    out.push({ kind: "http", label, method, path: url.slice(t.account.length), request: body ?? null, status: res.status, contentType, body: parsed });
+    out.push({
+      kind: "http",
+      label,
+      method,
+      path: url.slice(t.account.length),
+      request: body ?? null,
+      status: res.status,
+      contentType,
+      body: parsed,
+    });
     return { status: res.status, json: parsed as any };
   }
 
@@ -80,7 +89,9 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     const remote = r.stderr
       .split("\n")
       .filter((l) => /^remote: |filtering not recognized|could not read Username|returned error: \d+/.test(l))
-      .map((l) => l.replace(/unable to access '[^']*'/, "unable to access '<remote>'").replace(/for '[^']*'/, "for '<host>'"));
+      .map((l) =>
+        l.replace(/unable to access '[^']*'/, "unable to access '<remote>'").replace(/for '[^']*'/, "for '<host>'"),
+      );
     out.push({ kind: "git", label, code: r.status, remote, stdout: r.stdout });
     return r;
   }
@@ -94,7 +105,11 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     await api("ns create bad name", "POST", `${t.account}/namespaces`, { namespace: "-x" });
 
     // repos
-    const c = await api("repo create", "POST", `${BASE}/repos`, { name: "base", description: "probe", default_branch: "main" });
+    const c = await api("repo create", "POST", `${BASE}/repos`, {
+      name: "base",
+      description: "probe",
+      default_branch: "main",
+    });
     const token: string = c.json.result.token;
     const remote: string = c.json.result.remote;
     await api("repo create dup", "POST", `${BASE}/repos`, { name: "base" });
@@ -174,10 +189,40 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     await git("add", ["-C", clone, "add", "-A"]);
     await git("commit", ["-C", clone, "commit", "-qm", "reader"]);
     await git("push with read token", ["-C", clone, ...auth(read), "push", remote, "main"]);
-    await git("partial clone v2", ["-c", "protocol.version=2", ...auth(read), "clone", "-q", "--no-checkout", "--filter=blob:none", remote, join(work, "pc2")]);
+    await git("partial clone v2", [
+      "-c",
+      "protocol.version=2",
+      ...auth(read),
+      "clone",
+      "-q",
+      "--no-checkout",
+      "--filter=blob:none",
+      remote,
+      join(work, "pc2"),
+    ]);
     await git("partial clone v2 promisor", ["-C", join(work, "pc2"), "config", "--get", "remote.origin.promisor"]);
-    await git("partial clone v0", ["-c", "protocol.version=0", ...auth(read), "clone", "-q", "--no-checkout", "--filter=blob:none", remote, join(work, "pc0")]);
-    await git("shallow clone v2", ["-c", "protocol.version=2", ...auth(read), "clone", "-q", "--depth", "1", remote, join(work, "sh2")]);
+    await git("partial clone v0", [
+      "-c",
+      "protocol.version=0",
+      ...auth(read),
+      "clone",
+      "-q",
+      "--no-checkout",
+      "--filter=blob:none",
+      remote,
+      join(work, "pc0"),
+    ]);
+    await git("shallow clone v2", [
+      "-c",
+      "protocol.version=2",
+      ...auth(read),
+      "clone",
+      "-q",
+      "--depth",
+      "1",
+      remote,
+      join(work, "sh2"),
+    ]);
     await api("token revoke", "DELETE", `${BASE}/tokens/${rt.json.result.id}`);
     await api("token revoke again", "DELETE", `${BASE}/tokens/${rt.json.result.id}`);
     await api("token revoke unknown", "DELETE", `${BASE}/tokens/zzzzzzzzzzzzzzzz`);
@@ -190,12 +235,16 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
 
     // fork
     await api("fork", "POST", `${BASE}/repos/base/fork`, { name: "copy" });
-    await api("fork default_branch_only", "POST", `${BASE}/repos/base/fork`, { name: "copy-only", default_branch_only: true });
+    await api("fork default_branch_only", "POST", `${BASE}/repos/base/fork`, {
+      name: "copy-only",
+      default_branch_only: true,
+    });
     await api("fork dup", "POST", `${BASE}/repos/base/fork`, { name: "copy" });
     await api("fork bad name", "POST", `${BASE}/repos/base/fork`, { name: "-x" });
     await api("fork missing source", "POST", `${BASE}/repos/missing/fork`, { name: "z" });
     const copy = (await api("get fork", "GET", `${BASE}/repos/copy-only`)).json.result;
-    const ct = (await api("token for fork", "POST", `${BASE}/tokens`, { repo: "copy-only", scope: "read" })).json.result.plaintext;
+    const ct = (await api("token for fork", "POST", `${BASE}/tokens`, { repo: "copy-only", scope: "read" })).json.result
+      .plaintext;
     await git("ls-remote fork", [...auth(ct), "ls-remote", copy.remote]);
 
     // list
@@ -210,12 +259,18 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
 
     // import
     if (!opts.skipNetworkImports) {
-      await api("import https", "POST", `${BASE}/repos/hello/import`, { url: "https://github.com/octocat/Hello-World", depth: 1 });
+      await api("import https", "POST", `${BASE}/repos/hello/import`, {
+        url: "https://github.com/octocat/Hello-World",
+        depth: 1,
+      });
       const imported = (await api("get imported", "GET", `${BASE}/repos/hello`)).json.result;
-      const it = (await api("token for imported", "POST", `${BASE}/tokens`, { repo: "hello", scope: "read" })).json.result.plaintext;
+      const it = (await api("token for imported", "POST", `${BASE}/tokens`, { repo: "hello", scope: "read" })).json
+        .result.plaintext;
       await git("ls-remote imported", [...auth(it), "ls-remote", imported.remote]);
       await api("import not a repo", "POST", `${BASE}/repos/h3/import`, { url: "https://example.com/" });
-      await api("import missing github repo", "POST", `${BASE}/repos/h4/import`, { url: "https://github.com/octocat/definitely-not-a-repo-zz9" });
+      await api("import missing github repo", "POST", `${BASE}/repos/h4/import`, {
+        url: "https://github.com/octocat/definitely-not-a-repo-zz9",
+      });
     }
     await api("import http", "POST", `${BASE}/repos/h2/import`, { url: "http://github.com/octocat/Hello-World" });
 
@@ -227,7 +282,9 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     await api("get deleted", "GET", `${BASE}/repos/copy`);
   } finally {
     const headers = { authorization: `Bearer ${t.token}` };
-    const list = (await fetch(`${BASE}/repos?limit=200`, { headers }).then((r) => r.json()).catch(() => ({}))) as {
+    const list = (await fetch(`${BASE}/repos?limit=200`, { headers })
+      .then((r) => r.json())
+      .catch(() => ({}))) as {
       result?: { name: string }[];
     };
     for (const r of list.result ?? []) await fetch(`${BASE}/repos/${r.name}`, { method: "DELETE", headers });

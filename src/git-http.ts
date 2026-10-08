@@ -129,15 +129,17 @@ export async function pushPayloads(
       commits: objects.flatMap((o, i) => {
         if (!o || o.type !== "commit") return [];
         const c = parseCommit(shown[i]!, o.data);
-        return [{
-          id: c.hash,
-          message: c.message,
-          messageTruncated: false,
-          timestamp: new Date(c.committedAt * 1000).toISOString(),
-          author: c.author,
-          committer: c.committer,
-          parents: c.parents,
-        }];
+        return [
+          {
+            id: c.hash,
+            message: c.message,
+            messageTruncated: false,
+            timestamp: new Date(c.committedAt * 1000).toISOString(),
+            author: c.author,
+            committer: c.committer,
+            parents: c.parents,
+          },
+        ];
       }),
       totalCommitsCount: hashes.length,
       commitsTruncated: hashes.length > shown.length,
@@ -151,7 +153,10 @@ const pushLocks = new Map<string, Promise<unknown>>();
 function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = pushLocks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn);
-  pushLocks.set(key, next.catch(() => {}));
+  pushLocks.set(
+    key,
+    next.catch(() => {}),
+  );
   return next;
 }
 
@@ -296,7 +301,12 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
     const pack = new PackDetector();
     const status = await runBackend(store, route, req, res, query, { body, tap: (c) => pack.push(c) });
     if (status === 200 && kind !== "none" && pack.found) {
-      store.events.emit(kind === "clone" ? "cf.artifacts.repo.cloned" : "cf.artifacts.repo.fetched", route.ns, route.repo, {});
+      store.events.emit(
+        kind === "clone" ? "cf.artifacts.repo.cloned" : "cf.artifacts.repo.fetched",
+        route.ns,
+        route.repo,
+        {},
+      );
     }
     return true;
   }

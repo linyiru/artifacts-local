@@ -6,7 +6,7 @@
   "compatibility_date": "2026-09-01",
   "vars": {
     "ARTIFACTS_LOCAL_URL": "http://127.0.0.1:8788",
-    "ARTIFACTS_NAMESPACE": "default"
+    "ARTIFACTS_NAMESPACE": "default",
   },
   "env": {
     // Wrangler appends the environment to a Worker's name (artifacts-local-shim-local), which
@@ -15,8 +15,8 @@
       "name": "artifacts-local-shim",
       "vars": {
         "ARTIFACTS_LOCAL_URL": "http://127.0.0.1:8788",
-        "ARTIFACTS_NAMESPACE": "default"
-      }
-    }
-  }
+        "ARTIFACTS_NAMESPACE": "default",
+      },
+    },
+  },
 }

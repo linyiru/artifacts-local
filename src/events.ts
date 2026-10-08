@@ -51,7 +51,12 @@ export class EventBus {
     return () => this.listeners.delete(listener);
   }
 
-  emit(type: ArtifactsEventType, namespace: string, repoName: string, payload: Record<string, unknown>): ArtifactsEvent {
+  emit(
+    type: ArtifactsEventType,
+    namespace: string,
+    repoName: string,
+    payload: Record<string, unknown>,
+  ): ArtifactsEvent {
     const event: ArtifactsEvent = {
       type,
       source: { type: ACCOUNT_LEVEL.has(type) ? "artifacts" : "artifacts.repo", namespace, repoName },

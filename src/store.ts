@@ -194,7 +194,12 @@ export class Store {
       throw e;
     }
     const at = this.iso();
-    const meta: NamespaceMeta = { name: ns, jurisdiction: (jurisdiction as Jurisdiction) ?? null, createdAt: at, updatedAt: at };
+    const meta: NamespaceMeta = {
+      name: ns,
+      jurisdiction: (jurisdiction as Jurisdiction) ?? null,
+      createdAt: at,
+      updatedAt: at,
+    };
     await writeJson(join(this.namespaceDir(ns), "namespace.json"), meta);
     return meta;
   }
@@ -231,7 +236,11 @@ export class Store {
       if (meta) all.push(meta);
     }
     const items = all.slice(offset, offset + limit);
-    return { items, total: all.length, nextCursor: offset + limit < all.length ? encodeCursor(offset + limit) : undefined };
+    return {
+      items,
+      total: all.length,
+      nextCursor: offset + limit < all.length ? encodeCursor(offset + limit) : undefined,
+    };
   }
 
   /** Number of repos in a namespace (REST `repo_count`). */
@@ -266,8 +275,10 @@ export class Store {
     assertRepoName(repo);
     const meta = await this.readMeta(ns, repo);
     if (!meta) throw new ArtifactsError("NOT_FOUND", "Repository not found");
-    if (meta.status === "forking") throw new ArtifactsError("FORK_IN_PROGRESS", `Repository ${repo} is still being forked`);
-    if (meta.status === "importing") throw new ArtifactsError("IMPORT_IN_PROGRESS", `Repository ${repo} is still being imported`);
+    if (meta.status === "forking")
+      throw new ArtifactsError("FORK_IN_PROGRESS", `Repository ${repo} is still being forked`);
+    if (meta.status === "importing")
+      throw new ArtifactsError("IMPORT_IN_PROGRESS", `Repository ${repo} is still being imported`);
     return meta;
   }
 
@@ -393,7 +404,10 @@ export class Store {
 
   // ── list ──
 
-  async listRepos(nsName: unknown, opts: ListReposOptions = {}): Promise<{ repos: RepoMeta[]; total: number; nextCursor?: string }> {
+  async listRepos(
+    nsName: unknown,
+    opts: ListReposOptions = {},
+  ): Promise<{ repos: RepoMeta[]; total: number; nextCursor?: string }> {
     const ns = assertNamespaceName(nsName);
     const limit = opts.limit ?? 50;
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
@@ -529,7 +543,10 @@ export class Store {
     if (params.depth !== undefined && (!Number.isInteger(params.depth) || params.depth < 1)) {
       throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >0", "/depth");
     }
-    if (params.branch !== undefined && (typeof params.branch !== "string" || !params.branch || params.branch.startsWith("-"))) {
+    if (
+      params.branch !== undefined &&
+      (typeof params.branch !== "string" || !params.branch || params.branch.startsWith("-"))
+    ) {
       throw new ArtifactsError("INVALID_INPUT", "Invalid branch", "/branch");
     }
     const dir = await this.reserve(ns, target);
@@ -578,7 +595,12 @@ export class Store {
     return (await readJson<TokenRecord[]>(this.tokensPath(ns, repo))) ?? [];
   }
 
-  async createToken(ns: string, repo: string, scope: unknown, ttl: unknown): Promise<{ info: TokenInfo; plaintext: string }> {
+  async createToken(
+    ns: string,
+    repo: string,
+    scope: unknown,
+    ttl: unknown,
+  ): Promise<{ info: TokenInfo; plaintext: string }> {
     // Validate the request before looking the repo up, as a schema-validating API would.
     resolveScope(scope);
     resolveTtl(ttl);
@@ -638,7 +660,12 @@ export class Store {
   }
 
   /** Check a presented secret against a repo's tokens. Returns the granted scope or null. */
-  async authenticate(ns: string, repo: string, presented: string, needed: Scope): Promise<"ok" | "unauthorized" | "forbidden"> {
+  async authenticate(
+    ns: string,
+    repo: string,
+    presented: string,
+    needed: Scope,
+  ): Promise<"ok" | "unauthorized" | "forbidden"> {
     const secret = parseSecret(presented);
     if (!secret) return "unauthorized";
     const hash = hashSecret(secret);
@@ -676,5 +703,9 @@ export function importError(stderr: string, url = ""): ArtifactsError {
       "/url",
     );
   }
-  return new ArtifactsError("INVALID_URL", "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)", "/url");
+  return new ArtifactsError(
+    "INVALID_URL",
+    "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)",
+    "/url",
+  );
 }

@@ -114,9 +114,11 @@ describe("readCommit", () => {
 
   it("skips multi-line headers such as gpgsig", () => {
     const raw = Buffer.from(
-      "tree " + "a".repeat(40) + "\n" +
-      "author A <a@x> 10 +0000\ncommitter B <b@x> 20 +0000\n" +
-      "gpgsig -----BEGIN PGP SIGNATURE-----\n abc\n -----END PGP SIGNATURE-----\n\nmsg\n",
+      "tree " +
+        "a".repeat(40) +
+        "\n" +
+        "author A <a@x> 10 +0000\ncommitter B <b@x> 20 +0000\n" +
+        "gpgsig -----BEGIN PGP SIGNATURE-----\n abc\n -----END PGP SIGNATURE-----\n\nmsg\n",
     );
     const c = parseCommit("b".repeat(40), raw);
     expect(c).toMatchObject({ message: "msg", authoredAt: 10, committedAt: 20, parents: [] });

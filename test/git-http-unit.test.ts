@@ -101,8 +101,14 @@ describe("pushPayloads", () => {
       const c3 = await w.commit("three");
       await w.run(["push", "-q", bare, "main", ":old", "main:refs/heads/new"]);
 
-      const before = new Map([["refs/heads/main", c1], ["refs/heads/old", c1]]);
-      const after = new Map([["refs/heads/main", c3], ["refs/heads/new", c3]]);
+      const before = new Map([
+        ["refs/heads/main", c1],
+        ["refs/heads/old", c1],
+      ]);
+      const after = new Map([
+        ["refs/heads/main", c3],
+        ["refs/heads/new", c3],
+      ]);
       const payloads = await pushPayloads(bare, before, after);
       expect(payloads.map((p) => p.ref)).toEqual(["refs/heads/main", "refs/heads/new", "refs/heads/old"]);
 
@@ -110,7 +116,11 @@ describe("pushPayloads", () => {
       expect(main).toMatchObject({ before: c1, after: c3, totalCommitsCount: 2, commitsTruncated: false });
       const commits = main.commits as { id: string; message: string; parents: string[]; author: unknown }[];
       expect(commits.map((c) => c.id)).toEqual([c3, c2]);
-      expect(commits[1]).toMatchObject({ message: "two\n\nbody", parents: [c1], author: { name: "Ada Author", email: "ada@example.com" } });
+      expect(commits[1]).toMatchObject({
+        message: "two\n\nbody",
+        parents: [c1],
+        author: { name: "Ada Author", email: "ada@example.com" },
+      });
 
       expect(payloads[1]).toMatchObject({ before: "0".repeat(40), after: c3, totalCommitsCount: 2 });
       expect(payloads[2]).toMatchObject({ before: c1, after: "0".repeat(40), commits: [], totalCommitsCount: 0 });

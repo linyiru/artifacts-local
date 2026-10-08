@@ -18,16 +18,36 @@ class Repo extends RpcTarget {
     super();
     this.#inner = inner;
   }
-  info() { return this.#inner.info(); }
-  createToken(scope?: "read" | "write", ttl?: number) { return this.#inner.createToken(scope, ttl); }
-  listTokens() { return this.#inner.listTokens(); }
-  revokeToken(tokenOrId: string) { return this.#inner.revokeToken(tokenOrId); }
-  fork(name: string, opts?: Parameters<ArtifactsRepo["fork"]>[1]) { return this.#inner.fork(name, opts); }
-  log(opts?: Parameters<ArtifactsRepo["log"]>[0]) { return this.#inner.log(opts); }
-  readCommit(hash: string) { return this.#inner.readCommit(hash); }
-  readTree(hash: string) { return this.#inner.readTree(hash); }
-  readBlob(hash: string) { return this.#inner.readBlob(hash); }
-  readFile(args: { ref: string; path: string }) { return this.#inner.readFile(args); }
+  info() {
+    return this.#inner.info();
+  }
+  createToken(scope?: "read" | "write", ttl?: number) {
+    return this.#inner.createToken(scope, ttl);
+  }
+  listTokens() {
+    return this.#inner.listTokens();
+  }
+  revokeToken(tokenOrId: string) {
+    return this.#inner.revokeToken(tokenOrId);
+  }
+  fork(name: string, opts?: Parameters<ArtifactsRepo["fork"]>[1]) {
+    return this.#inner.fork(name, opts);
+  }
+  log(opts?: Parameters<ArtifactsRepo["log"]>[0]) {
+    return this.#inner.log(opts);
+  }
+  readCommit(hash: string) {
+    return this.#inner.readCommit(hash);
+  }
+  readTree(hash: string) {
+    return this.#inner.readTree(hash);
+  }
+  readBlob(hash: string) {
+    return this.#inner.readBlob(hash);
+  }
+  readFile(args: { ref: string; path: string }) {
+    return this.#inner.readFile(args);
+  }
 }
 
 export class ArtifactsLocal extends WorkerEntrypoint<Env> {
@@ -38,11 +58,21 @@ export class ArtifactsLocal extends WorkerEntrypoint<Env> {
       namespace: props.namespace ?? this.env.ARTIFACTS_NAMESPACE ?? "default",
     });
   }
-  create(name: string, opts?: Parameters<Artifacts["create"]>[1]) { return this.#binding().create(name, opts); }
-  async get(name: string) { return new Repo(await this.#binding().get(name)); }
-  list(opts?: Parameters<Artifacts["list"]>[0]) { return this.#binding().list(opts); }
-  import(params: Parameters<Artifacts["import"]>[0]) { return this.#binding().import(params); }
-  delete(name: string) { return this.#binding().delete(name); }
+  create(name: string, opts?: Parameters<Artifacts["create"]>[1]) {
+    return this.#binding().create(name, opts);
+  }
+  async get(name: string) {
+    return new Repo(await this.#binding().get(name));
+  }
+  list(opts?: Parameters<Artifacts["list"]>[0]) {
+    return this.#binding().list(opts);
+  }
+  import(params: Parameters<Artifacts["import"]>[0]) {
+    return this.#binding().import(params);
+  }
+  delete(name: string) {
+    return this.#binding().delete(name);
+  }
 }
 
 export default {

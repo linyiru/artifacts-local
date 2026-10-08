@@ -109,10 +109,17 @@ describe("REST envelope and auth", () => {
     ]);
     const missing = await call("GET", "/namespaces/default/repos/nope-404");
     expect(missing.json!.errors).toEqual([
-      { code: 10200, message: "Repository not found", documentation_url: "https://developers.cloudflare.com/artifacts/api/errors#10200" },
+      {
+        code: 10200,
+        message: "Repository not found",
+        documentation_url: "https://developers.cloudflare.com/artifacts/api/errors#10200",
+      },
     ]);
     const ttl = await call("POST", "/namespaces/default/tokens", { repo: "x", ttl: 1 });
-    expect(ttl.json!.errors[0]).toMatchObject({ message: "ttl must be between 60 and 31536000 seconds", source: { pointer: "/ttl" } });
+    expect(ttl.json!.errors[0]).toMatchObject({
+      message: "ttl must be between 60 and 31536000 seconds",
+      source: { pointer: "/ttl" },
+    });
   });
 
   it("rejects malformed JSON bodies", async () => {
@@ -125,7 +132,13 @@ describe("namespaces", () => {
   it("creates, lists, gets, and deletes", async () => {
     const c = await call("POST", "/namespaces", { namespace: "eu-ns", jurisdiction: "eu" });
     expect(c.json!.result).toMatchObject({ namespace: "eu-ns", jurisdiction: "eu", repo_count: 0 });
-    expect(Object.keys(c.json!.result).toSorted()).toEqual(["created_at", "jurisdiction", "namespace", "repo_count", "updated_at"]);
+    expect(Object.keys(c.json!.result).toSorted()).toEqual([
+      "created_at",
+      "jurisdiction",
+      "namespace",
+      "repo_count",
+      "updated_at",
+    ]);
     const plain = await call("POST", "/namespaces", { namespace: "plain-ns" });
     expect(plain.json!.result.jurisdiction).toBe("unrestricted");
     const list = await call("GET", "/namespaces?limit=100");
@@ -149,7 +162,14 @@ describe("repos", () => {
       default_branch: "trunk",
       read_only: false,
     });
-    expect(Object.keys(r.json!.result).toSorted()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
+    expect(Object.keys(r.json!.result).toSorted()).toEqual([
+      "default_branch",
+      "description",
+      "id",
+      "name",
+      "remote",
+      "token",
+    ]);
     expect(r.json!.result).toMatchObject({
       name: "shape",
       description: "d",
@@ -162,14 +182,27 @@ describe("repos", () => {
     await createRepo("getme");
     const r = await call("GET", "/namespaces/default/repos/getme");
     expect(Object.keys(r.json!.result).toSorted()).toEqual([
-      "created_at", "default_branch", "description", "id", "last_push_at", "name", "read_only", "remote", "source", "updated_at",
+      "created_at",
+      "default_branch",
+      "description",
+      "id",
+      "last_push_at",
+      "name",
+      "read_only",
+      "remote",
+      "source",
+      "updated_at",
     ]);
   });
 
   it("validates create input", async () => {
     expect((await call("POST", "/namespaces/default/repos", { name: "-x" })).json!.errors[0].code).toBe(10101);
-    expect((await call("POST", "/namespaces/default/repos", { name: "ok1", read_only: "yes" })).json!.errors[0].code).toBe(10100);
-    expect((await call("POST", "/namespaces/default/repos", { name: "ok1", description: 5 })).json!.errors[0].code).toBe(10100);
+    expect(
+      (await call("POST", "/namespaces/default/repos", { name: "ok1", read_only: "yes" })).json!.errors[0].code,
+    ).toBe(10100);
+    expect(
+      (await call("POST", "/namespaces/default/repos", { name: "ok1", description: 5 })).json!.errors[0].code,
+    ).toBe(10100);
     await createRepo("dup");
     const d = await call("POST", "/namespaces/default/repos", { name: "dup" });
     expect(d.status).toBe(409);
@@ -256,7 +289,8 @@ describe("git over HTTP", () => {
     expect(noAuth.code).not.toBe(0);
     expect(noAuth.stderr).toMatch(/401|Authentication|could not read Username/i);
 
-    const read = (await call("POST", "/namespaces/default/tokens", { repo: "authz", scope: "read", ttl: 600 })).json!.result;
+    const read = (await call("POST", "/namespaces/default/tokens", { repo: "authz", scope: "read", ttl: 600 })).json!
+      .result;
     const denied = await git(["-C", w.dir, ...bearer(read.plaintext), "push", remote, "main"]);
     expect(denied.code).not.toBe(0);
     expect(denied.stderr).toContain("403");
@@ -269,7 +303,8 @@ describe("git over HTTP", () => {
 
   it("rejects expired and revoked tokens", async () => {
     const { remote } = await createRepo("expiry");
-    const t = (await call("POST", "/namespaces/default/tokens", { repo: "expiry", scope: "read", ttl: 60 })).json!.result;
+    const t = (await call("POST", "/namespaces/default/tokens", { repo: "expiry", scope: "read", ttl: 60 })).json!
+      .result;
     expect((await git([...bearer(t.plaintext), "ls-remote", remote])).code).toBe(0);
     clock += 61_000;
     const expired = await git([...bearer(t.plaintext), "ls-remote", remote]);
@@ -324,7 +359,17 @@ describe("git over HTTP", () => {
     await w.run([...bearer(token), "push", "-q", remote, "main"]);
 
     const v2 = join(tmp.path, "partial-v2");
-    const r2 = await git(["-c", "protocol.version=2", ...bearer(token), "clone", "-q", "--no-checkout", "--filter=blob:none", remote, v2]);
+    const r2 = await git([
+      "-c",
+      "protocol.version=2",
+      ...bearer(token),
+      "clone",
+      "-q",
+      "--no-checkout",
+      "--filter=blob:none",
+      remote,
+      v2,
+    ]);
     expect(r2.code, r2.stderr).toBe(0);
     expect(r2.stderr).not.toContain("filtering not recognized");
     expect((await git(["-C", v2, "config", "--get", "remote.origin.promisor"])).stdout.toString().trim()).toBe("true");
@@ -332,7 +377,16 @@ describe("git over HTTP", () => {
     expect(blobs.stdout.toString()).toMatch(/^\?[0-9a-f]{40}$/m);
 
     const v0 = join(tmp.path, "partial-v0");
-    const r0 = await git(["-c", "protocol.version=0", ...bearer(token), "clone", "-q", "--filter=blob:none", remote, v0]);
+    const r0 = await git([
+      "-c",
+      "protocol.version=0",
+      ...bearer(token),
+      "clone",
+      "-q",
+      "--filter=blob:none",
+      remote,
+      v0,
+    ]);
     expect(r0.code, r0.stderr).toBe(0);
     expect(r0.stderr).toContain("filtering not recognized by server");
   });
@@ -348,7 +402,9 @@ describe("git over HTTP", () => {
     await w.run([...bearer(token), "push", "-q", "--force", remote, "main"]);
     const logRes = await call("GET", "/namespaces/default/repos/rewrite/log");
     expect(logRes.json!.result.map((c: any) => c.message)).toEqual(["one, rewritten"]);
-    const pushed = srv.store.events.history.filter((e) => e.type === "cf.artifacts.repo.pushed").map((e) => e.payload.ref);
+    const pushed = srv.store.events.history
+      .filter((e) => e.type === "cf.artifacts.repo.pushed")
+      .map((e) => e.payload.ref);
     expect(pushed).toEqual(["refs/heads/main", "refs/heads/topic", "refs/heads/topic", "refs/heads/main"]);
   });
 });
@@ -372,7 +428,14 @@ describe("repo content routes", () => {
     const all = await call("GET", "/namespaces/default/repos/content/log");
     expect(all.json!.result.map((c: any) => c.message)).toEqual(["add binary", "init"]);
     expect(Object.keys(all.json!.result[0]).toSorted()).toEqual([
-      "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
+      "author",
+      "authoredAt",
+      "committedAt",
+      "committer",
+      "hash",
+      "message",
+      "parents",
+      "treeHash",
     ]);
     const one = await call("GET", "/namespaces/default/repos/content/log?ref=feature/x&limit=1&offset=1");
     expect(one.json!.result.map((c: any) => c.message)).toEqual(["add binary"]);
@@ -453,7 +516,9 @@ describe("tokens routes", () => {
   it("validates token parameters", async () => {
     await createRepo("tokv");
     expect((await call("POST", "/namespaces/default/tokens", { scope: "read" })).json!.errors[0].code).toBe(10100);
-    expect((await call("POST", "/namespaces/default/tokens", { repo: "tokv", ttl: 1 })).json!.errors[0].code).toBe(10103);
+    expect((await call("POST", "/namespaces/default/tokens", { repo: "tokv", ttl: 1 })).json!.errors[0].code).toBe(
+      10103,
+    );
     expect((await call("POST", "/namespaces/default/tokens", { repo: "ghost" })).status).toBe(404);
     for (const qs of ["state=bogus", "per_page=0", "per_page=101", "page=0"]) {
       expect((await call("GET", `/namespaces/default/repos/tokv/tokens?${qs}`)).status, qs).toBe(400);
@@ -477,7 +542,10 @@ describe("fork and import routes", () => {
     const ls = await git([...bearer(f.json!.result.token), "ls-remote", f.json!.result.remote]);
     expect(ls.stdout.toString()).toContain("refs/heads/side");
 
-    const all = await call("POST", "/namespaces/default/repos/upstream/fork", { name: "downstream-all", default_branch_only: true });
+    const all = await call("POST", "/namespaces/default/repos/upstream/fork", {
+      name: "downstream-all",
+      default_branch_only: true,
+    });
     const ls2 = await git([...bearer(all.json!.result.token), "ls-remote", all.json!.result.remote]);
     expect(ls2.stdout.toString()).toContain("refs/heads/side");
 
@@ -489,7 +557,9 @@ describe("fork and import routes", () => {
     const r = await call("POST", "/namespaces/default/repos/imp/import", { url: "file:///etc" });
     expect(r.status).toBe(400);
     expect(r.json!.errors[0].code).toBe(10100);
-    expect((await call("POST", "/namespaces/default/repos/imp/import", { url: "https://x", depth: "1" })).status).toBe(400);
+    expect((await call("POST", "/namespaces/default/repos/imp/import", { url: "https://x", depth: "1" })).status).toBe(
+      400,
+    );
   });
 
   it("imports from a local path when insecure import is allowed", async () => {
@@ -504,7 +574,14 @@ describe("fork and import routes", () => {
       });
       const body = (await res.json()) as any;
       expect(res.status).toBe(201);
-      expect(Object.keys(body.result).toSorted()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
+      expect(Object.keys(body.result).toSorted()).toEqual([
+        "default_branch",
+        "description",
+        "id",
+        "name",
+        "remote",
+        "token",
+      ]);
     } finally {
       await loose.close();
     }

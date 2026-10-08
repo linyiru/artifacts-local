@@ -9,8 +9,13 @@
     // swaps the binding for the artifacts-local shim; the app code does not change.
     "local": {
       "services": [
-        { "binding": "ARTIFACTS", "service": "artifacts-local-shim", "entrypoint": "ArtifactsLocal", "props": { "namespace": "default" } }
-      ]
-    }
-  }
+        {
+          "binding": "ARTIFACTS",
+          "service": "artifacts-local-shim",
+          "entrypoint": "ArtifactsLocal",
+          "props": { "namespace": "default" },
+        },
+      ],
+    },
+  },
 }

@@ -1,14 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ArtifactsError } from "./errors.ts";
-import {
-  type TreeEntry,
-  log,
-  readBlob,
-  readCommit,
-  readFileAt,
-  readTree,
-  sniffContentType,
-} from "./git.ts";
+import { type TreeEntry, log, readBlob, readCommit, readFileAt, readTree, sniffContentType } from "./git.ts";
 import type { NamespaceMeta, RepoMeta, RepoSort, Store } from "./store.ts";
 import type { TokenInfo, TokenState } from "./tokens.ts";
 
@@ -71,7 +63,12 @@ export function repoInfo(store: Store, m: RepoMeta): Record<string, unknown> {
  * Live pagination info (2026-10-08): cursor-style while more pages follow, offset-style once
  * everything fits, e.g. `{page: 1, per_page: 50, total_pages: 0, count: 0, total_count: 0}`.
  */
-function listInfo(nextCursor: string | undefined, perPage: number, count: number, total: number): Record<string, unknown> {
+function listInfo(
+  nextCursor: string | undefined,
+  perPage: number,
+  count: number,
+  total: number,
+): Record<string, unknown> {
   if (nextCursor) return { cursor: nextCursor, per_page: perPage, count };
   return { page: 1, per_page: perPage, total_pages: Math.ceil(total / perPage), count, total_count: total };
 }
@@ -128,28 +125,32 @@ async function jsonBody(req: IncomingMessage): Promise<Record<string, unknown>> 
 function intParam(q: URLSearchParams, name: string): number | undefined {
   const v = q.get(name);
   if (v === null || v === "") return undefined;
-  if (!/^-?\d+$/.test(v)) throw new ArtifactsError("INVALID_INPUT", "Invalid input: expected number, received NaN", `/${name}`);
+  if (!/^-?\d+$/.test(v))
+    throw new ArtifactsError("INVALID_INPUT", "Invalid input: expected number, received NaN", `/${name}`);
   return Number(v);
 }
 
 function optString(body: Record<string, unknown>, key: string): string | undefined {
   const v = body[key];
   if (v === undefined || v === null) return undefined;
-  if (typeof v !== "string") throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected string, received ${typeof v}`, `/${key}`);
+  if (typeof v !== "string")
+    throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected string, received ${typeof v}`, `/${key}`);
   return v;
 }
 
 function optBool(body: Record<string, unknown>, key: string): boolean | undefined {
   const v = body[key];
   if (v === undefined || v === null) return undefined;
-  if (typeof v !== "boolean") throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected boolean, received ${typeof v}`, `/${key}`);
+  if (typeof v !== "boolean")
+    throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected boolean, received ${typeof v}`, `/${key}`);
   return v;
 }
 
 function optNumber(body: Record<string, unknown>, key: string): number | undefined {
   const v = body[key];
   if (v === undefined || v === null) return undefined;
-  if (typeof v !== "number") throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected number, received ${typeof v}`, `/${key}`);
+  if (typeof v !== "number")
+    throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected number, received ${typeof v}`, `/${key}`);
   return v;
 }
 

@@ -221,7 +221,15 @@ export async function readFileAt(gitDir: string, ref: string, path: string): Pro
   if (!commit) return null;
   const clean = path.replace(/^\/+/, "");
   if (!clean) return null;
-  const r = await git(["--git-dir", gitDir, "rev-parse", "--verify", "--quiet", "--end-of-options", `${commit}:${clean}`]);
+  const r = await git([
+    "--git-dir",
+    gitDir,
+    "rev-parse",
+    "--verify",
+    "--quiet",
+    "--end-of-options",
+    `${commit}:${clean}`,
+  ]);
   if (r.code !== 0) return null;
   return readBlob(gitDir, r.stdout.toString().trim());
 }
@@ -250,13 +258,21 @@ export async function log(gitDir: string, opts: LogOptions = {}): Promise<Commit
   const ref = opts.ref ?? "HEAD";
   const limit = Math.min(opts.limit ?? LOG_DEFAULT_LIMIT, LOG_MAX_LIMIT);
   const offset = opts.offset ?? 0;
-  if (!Number.isInteger(limit) || limit < 1) throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >0", "/limit");
-  if (!Number.isInteger(offset) || offset < 0) throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >=0", "/offset");
+  if (!Number.isInteger(limit) || limit < 1)
+    throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >0", "/limit");
+  if (!Number.isInteger(offset) || offset < 0)
+    throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >=0", "/offset");
 
   const start = await resolveCommit(gitDir, ref);
   if (!start) return [];
   const list = await gitOk([
-    "--git-dir", gitDir, "rev-list", "--first-parent", `--max-count=${limit}`, `--skip=${offset}`, start,
+    "--git-dir",
+    gitDir,
+    "rev-list",
+    "--first-parent",
+    `--max-count=${limit}`,
+    `--skip=${offset}`,
+    start,
   ]);
   const hashes = list.toString().split("\n").filter(Boolean);
   const objects = await readObjects(gitDir, hashes);

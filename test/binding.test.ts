@@ -45,11 +45,11 @@ async function seed(remote: string, token: string): Promise<WorkTree> {
 
 describe("namespace methods", () => {
   it("create returns ArtifactsCreateRepoResult", async () => {
-    const r = (await artifacts.create("starter-repo", {
+    const r = await artifacts.create("starter-repo", {
       description: "Repository for automation experiments",
       readOnly: false,
       setDefaultBranch: "main",
-    }));
+    });
     expect(Object.keys(r).toSorted()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
     expect(r).toMatchObject({
       name: "starter-repo",
@@ -91,10 +91,10 @@ describe("namespace methods", () => {
   it("import brings in a remote's default branch", async () => {
     const up = await WorkTree.init(join(tmp.path, "upstream"), "trunk");
     await up.commit("upstream");
-    const r = (await artifacts.import({
+    const r = await artifacts.import({
       source: { url: up.dir, depth: 1 },
       target: { name: "imported", opts: { description: "mirror", readOnly: true } },
-    }));
+    });
     expect(r).toMatchObject({ name: "imported", defaultBranch: "main", description: "mirror" });
     using repo = await artifacts.get("imported");
     expect(await repo.info()).toMatchObject({ readOnly: true, source: `git:${up.dir}.git` });
@@ -111,9 +111,19 @@ describe("repository capability", () => {
 
   it("info returns ArtifactsRepoInfo", async () => {
     using repo = await artifacts.get("content");
-    const i = (await repo.info());
+    const i = await repo.info();
     expect(Object.keys(i).toSorted()).toEqual([
-      "createdAt", "defaultBranch", "description", "id", "lastPushAt", "name", "readOnly", "remote", "source", "status", "updatedAt",
+      "createdAt",
+      "defaultBranch",
+      "description",
+      "id",
+      "lastPushAt",
+      "name",
+      "readOnly",
+      "remote",
+      "source",
+      "status",
+      "updatedAt",
     ]);
     expect(i.lastPushAt).toBeNull();
   });
@@ -126,7 +136,14 @@ describe("repository capability", () => {
 
     const commit = (await repo.readCommit(history[0]!.hash))!;
     expect(Object.keys(commit).toSorted()).toEqual([
-      "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
+      "author",
+      "authoredAt",
+      "committedAt",
+      "committer",
+      "hash",
+      "message",
+      "parents",
+      "treeHash",
     ]);
     expect(await repo.readCommit("0".repeat(40))).toBeNull();
     await rejectsWith(repo.readCommit("not-a-hash"), "INVALID_INPUT", 10100);
@@ -154,7 +171,7 @@ describe("repository capability", () => {
 
   it("createToken, listTokens, revokeToken", async () => {
     using repo = await artifacts.get("content");
-    const t = (await repo.createToken("read", 3600));
+    const t = await repo.createToken("read", 3600);
     expect(Object.keys(t).toSorted()).toEqual(["expiresAt", "id", "plaintext", "scope"]);
     expect(t.scope).toBe("read");
     expect((await repo.createToken()).scope).toBe("write");
@@ -173,7 +190,7 @@ describe("repository capability", () => {
 
   it("fork copies every branch and is listed with its source", async () => {
     using repo = await artifacts.get("content");
-    const f = (await repo.fork("content-fork", { description: "Fork for testing" }));
+    const f = await repo.fork("content-fork", { description: "Fork for testing" });
     expect(Object.keys(f).toSorted()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
     using forked = await artifacts.get("content-fork");
     expect(await forked.info()).toMatchObject({ source: "artifacts:default/content", description: "Fork for testing" });
@@ -235,7 +252,10 @@ describe("transport", () => {
       ok: false,
       error: { code: "INVALID_INPUT" },
     });
-    expect(await dispatch(srv.store, "x", { method: "list" })).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+    expect(await dispatch(srv.store, "x", { method: "list" })).toMatchObject({
+      ok: false,
+      error: { code: "INVALID_INPUT" },
+    });
     const res = await fetch(`${srv.url}/__local/binding/default`, { method: "POST", body: "{nope" });
     expect(((await res.json()) as { ok: boolean }).ok).toBe(false);
     expect((await fetch(`${srv.url}/__local/binding/default`)).status).toBe(404);

@@ -37,9 +37,13 @@ describe("installed package", () => {
   });
 
   it("serves REST from the installed CLI", async () => {
-    const child = spawn(process.execPath, [join(pkg, "dist/cli.js"), "serve", "--port", "0", "--data-dir", join(tmp.path, "cli-data")], {
-      cwd: app,
-    });
+    const child = spawn(
+      process.execPath,
+      [join(pkg, "dist/cli.js"), "serve", "--port", "0", "--data-dir", join(tmp.path, "cli-data")],
+      {
+        cwd: app,
+      },
+    );
     try {
       const url = await new Promise<string>((resolve, reject) => {
         let out = "";
@@ -117,7 +121,16 @@ void info;
     await writeFile(
       join(app, "tsconfig.json"),
       JSON.stringify({
-        compilerOptions: { target: "es2024", module: "nodenext", moduleResolution: "nodenext", strict: true, noEmit: true, skipLibCheck: false, types: ["node"], typeRoots: [join(ROOT, "node_modules/@types")] },
+        compilerOptions: {
+          target: "es2024",
+          module: "nodenext",
+          moduleResolution: "nodenext",
+          strict: true,
+          noEmit: true,
+          skipLibCheck: false,
+          types: ["node"],
+          typeRoots: [join(ROOT, "node_modules/@types")],
+        },
         files: ["consumer.ts"],
       }),
     );
@@ -136,7 +149,9 @@ void info;
       output: { format: "esm" },
     });
     const code = out.output[0].code;
-    expect(code).toMatch(/ArtifactsLocal = class extends WorkerEntrypoint|class ArtifactsLocal extends WorkerEntrypoint/);
+    expect(code).toMatch(
+      /ArtifactsLocal = class extends WorkerEntrypoint|class ArtifactsLocal extends WorkerEntrypoint/,
+    );
     expect(code).toContain("/__local/binding/");
   });
 

@@ -12,7 +12,12 @@ let clock: number;
 beforeEach(async () => {
   tmp = await tempDir();
   clock = Date.parse("2026-10-08T00:00:00Z");
-  store = new Store({ dataDir: join(tmp.path, "data"), accountId: "acct", now: () => clock, allowInsecureImport: true });
+  store = new Store({
+    dataDir: join(tmp.path, "data"),
+    accountId: "acct",
+    now: () => clock,
+    allowInsecureImport: true,
+  });
 });
 
 afterEach(() => tmp.cleanup());
@@ -47,7 +52,9 @@ describe("namespaces", () => {
     expect((await store.listNamespaces()).items.map((n) => n.name)).toEqual(["dev", "prod"]);
     const page = await store.listNamespaces({ limit: 1 });
     expect(page.items.map((n) => n.name)).toEqual(["dev"]);
-    expect((await store.listNamespaces({ limit: 1, cursor: page.nextCursor })).items.map((n) => n.name)).toEqual(["prod"]);
+    expect((await store.listNamespaces({ limit: 1, cursor: page.nextCursor })).items.map((n) => n.name)).toEqual([
+      "prod",
+    ]);
     await store.deleteNamespace("prod");
     await expect(store.getNamespace("prod")).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
@@ -95,8 +102,12 @@ describe("createRepo", () => {
 
   it("rejects bad names and bad branches without leaving a directory", async () => {
     await expect(store.createRepo("default", "-bad")).rejects.toMatchObject({ code: "INVALID_REPO_NAME" });
-    await expect(store.createRepo("default", "app", { defaultBranch: "a..b" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(store.createRepo("default", "app", { defaultBranch: "-x" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(store.createRepo("default", "app", { defaultBranch: "a..b" })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await expect(store.createRepo("default", "app", { defaultBranch: "-x" })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
     expect((await store.listRepos("default")).total).toBe(0);
   });
 
@@ -138,7 +149,9 @@ describe("listRepos", () => {
 
   it("sorts by name either way and searches", async () => {
     expect((await store.listRepos("default", { sort: "name", direction: "asc" })).repos.map((m) => m.name)).toEqual([
-      "alpha", "bravo", "charlie",
+      "alpha",
+      "bravo",
+      "charlie",
     ]);
     const s = await store.listRepos("default", { search: "AL" });
     expect(s.repos.map((m) => m.name)).toEqual(["alpha"]);
@@ -164,9 +177,15 @@ describe("listRepos", () => {
   it("validates limit, sort, direction, and cursor", async () => {
     await expect(store.listRepos("default", { limit: 0 })).rejects.toMatchObject({ code: "INVALID_INPUT" });
     await expect(store.listRepos("default", { limit: 201 })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(store.listRepos("default", { sort: "size" as never })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(store.listRepos("default", { direction: "up" as never })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(store.listRepos("default", { cursor: Buffer.from('{"o":-1}').toString("base64url") })).rejects.toMatchObject({
+    await expect(store.listRepos("default", { sort: "size" as never })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await expect(store.listRepos("default", { direction: "up" as never })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await expect(
+      store.listRepos("default", { cursor: Buffer.from('{"o":-1}').toString("base64url") }),
+    ).rejects.toMatchObject({
       code: "INVALID_INPUT",
     });
   });
@@ -249,7 +268,12 @@ describe("importRepo", () => {
   it("imports the remote default branch", async () => {
     const r = await store.importRepo("default", "mirror", { url: source, description: "m" });
     // The remote's default is trunk, but like the live service the metadata reports "main".
-    expect(r.meta).toMatchObject({ defaultBranch: "main", source: `git:${source}.git`, description: "m", status: "ready" });
+    expect(r.meta).toMatchObject({
+      defaultBranch: "main",
+      source: `git:${source}.git`,
+      description: "m",
+      status: "ready",
+    });
     const head = await gitOk(["--git-dir", store.gitDir("default", "mirror"), "symbolic-ref", "--short", "HEAD"]);
     expect(head.toString().trim()).toBe("trunk");
     expect((await log(store.gitDir("default", "mirror"))).length).toBe(2);
@@ -265,13 +289,19 @@ describe("importRepo", () => {
   it("requires HTTPS unless insecure import is allowed", async () => {
     const strict = new Store({ dataDir: store.dataDir });
     await expect(strict.importRepo("default", "x", { url: source })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(strict.importRepo("default", "x", { url: "http://example.com/a.git" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(strict.importRepo("default", "x", { url: "http://example.com/a.git" })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
   });
 
   it("validates its parameters", async () => {
     await expect(store.importRepo("default", "x", { url: "" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(store.importRepo("default", "x", { url: source, depth: 0 })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(store.importRepo("default", "x", { url: source, branch: "-x" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(store.importRepo("default", "x", { url: source, depth: 0 })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await expect(store.importRepo("default", "x", { url: source, branch: "-x" })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
   });
 
   it("maps a missing source to an error and cleans up", async () => {
@@ -293,7 +323,9 @@ describe("importRepo", () => {
 
 describe("importSource / importError", () => {
   it("records the source as git:<url>.git, as live does", () => {
-    expect(importSource("https://github.com/octocat/Hello-World")).toBe("git:https://github.com/octocat/Hello-World.git");
+    expect(importSource("https://github.com/octocat/Hello-World")).toBe(
+      "git:https://github.com/octocat/Hello-World.git",
+    );
     expect(importSource("https://github.com/a/b.git")).toBe("git:https://github.com/a/b.git");
     expect(importSource("https://gitlab.com/g/p/")).toBe("git:https://gitlab.com/g/p.git");
   });

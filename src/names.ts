@@ -21,7 +21,11 @@ export function assertNamespaceName(name: unknown): string {
 
 export function assertRepoName(name: unknown): string {
   if (!isValidRepoName(name)) {
-    throw new ArtifactsError("INVALID_REPO_NAME", "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/", "/name");
+    throw new ArtifactsError(
+      "INVALID_REPO_NAME",
+      "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/",
+      "/name",
+    );
   }
   return name;
 }

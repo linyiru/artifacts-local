@@ -100,7 +100,14 @@ beforeAll(async () => {
   await w.commit("first", { "README.md": "# from git\n" });
   await w.write("data.bin", Buffer.from([0, 159, 146, 150]));
   await w.commit("second");
-  await w.run(["-c", `http.extraHeader=Authorization: Bearer ${seeded.token}`, "push", "-q", srv.store.remoteUrl("wd", "seeded"), "main"]);
+  await w.run([
+    "-c",
+    `http.extraHeader=Authorization: Bearer ${seeded.token}`,
+    "push",
+    "-q",
+    srv.store.remoteUrl("wd", "seeded"),
+    "main",
+  ]);
   await slow.store.createRepo("default", "slow-src");
 
   const shim = await build({
@@ -159,9 +166,22 @@ async function scenario(name: string, worker = "app"): Promise<any> {
 describe("shim inside workerd", () => {
   it("reads repo content, with Blobs crossing RPC intact", async () => {
     const r = await scenario("read");
-    expect(r.info).toMatchObject({ name: "seeded", defaultBranch: "main", remote: srv.store.remoteUrl("wd", "seeded") });
+    expect(r.info).toMatchObject({
+      name: "seeded",
+      defaultBranch: "main",
+      remote: srv.store.remoteUrl("wd", "seeded"),
+    });
     expect(r.messages).toEqual(["second", "first"]);
-    expect(r.commitKeys).toEqual(["author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash"]);
+    expect(r.commitKeys).toEqual([
+      "author",
+      "authoredAt",
+      "committedAt",
+      "committer",
+      "hash",
+      "message",
+      "parents",
+      "treeHash",
+    ]);
     expect(r.tree).toEqual([
       ["README.md", "blob", "100644"],
       ["data.bin", "blob", "100644"],
@@ -171,13 +191,20 @@ describe("shim inside workerd", () => {
     expect(r.file).toEqual({ isBlob: true, type: "text/plain;charset=utf-8", size: 11, text: "# from git\n" });
     expect(r.binary).toBe("application/octet-stream");
     expect(r.missingFile).toBeNull();
-    expect(r.badHash).toMatchObject({ ok: false, error: { name: "ArtifactsError", code: "INVALID_INPUT", numericCode: 10100, isError: true } });
+    expect(r.badHash).toMatchObject({
+      ok: false,
+      error: { name: "ArtifactsError", code: "INVALID_INPUT", numericCode: 10100, isError: true },
+    });
   });
 
   it("runs the repo lifecycle", async () => {
     const r = await scenario("lifecycle");
     expect(r.createdKeys).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
-    expect(r.created).toMatchObject({ name: "wd-repo", description: "from workerd", remote: srv.store.remoteUrl("wd", "wd-repo") });
+    expect(r.created).toMatchObject({
+      name: "wd-repo",
+      description: "from workerd",
+      remote: srv.store.remoteUrl("wd", "wd-repo"),
+    });
     expect(r.token).toEqual({ scope: "read", plaintextOk: true });
     expect(r.tokenTotal).toBe(2);
     expect(r.revoked).toBe(true);
@@ -192,7 +219,13 @@ describe("shim inside workerd", () => {
   it("throws ArtifactsError NOT_FOUND from get()", async () => {
     expect(await scenario("missing")).toEqual({
       ok: false,
-      error: { name: "ArtifactsError", code: "NOT_FOUND", numericCode: 10200, message: "Repository not found", isError: true },
+      error: {
+        name: "ArtifactsError",
+        code: "NOT_FOUND",
+        numericCode: 10200,
+        message: "Repository not found",
+        isError: true,
+      },
     });
   });
 

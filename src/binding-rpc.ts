@@ -157,14 +157,22 @@ export async function dispatch(store: Store, ns: string, req: RpcRequest): Promi
     if (req.repo !== undefined) return await repoCall(store, ns, req.repo, req.method, args);
     return { ok: true, result: await namespaceCall(store, ns, req.method, args) };
   } catch (e) {
-    const err = e instanceof ArtifactsError ? e : new ArtifactsError("INTERNAL_ERROR", e instanceof Error ? e.message : String(e));
+    const err =
+      e instanceof ArtifactsError
+        ? e
+        : new ArtifactsError("INTERNAL_ERROR", e instanceof Error ? e.message : String(e));
     return { ok: false, error: { code: err.code, numericCode: err.numericCode, message: err.message } };
   }
 }
 
 const ROUTE = /^\/__local\/binding\/([^/]+)$/;
 
-export async function handleBinding(store: Store, req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
+export async function handleBinding(
+  store: Store,
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+): Promise<boolean> {
   const m = ROUTE.exec(url.pathname);
   if (!m || req.method !== "POST") return false;
   const chunks: Buffer[] = [];

@@ -65,7 +65,16 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const r = await api("GET", `/repos/${repoName("get")}`);
     expect(r.json.success).toBe(true);
     expect(Object.keys(r.json.result).toSorted()).toEqual([
-      "created_at", "default_branch", "description", "id", "last_push_at", "name", "read_only", "remote", "source", "updated_at",
+      "created_at",
+      "default_branch",
+      "description",
+      "id",
+      "last_push_at",
+      "name",
+      "read_only",
+      "remote",
+      "source",
+      "updated_at",
     ]);
     expect(r.json.result.last_push_at).toBeNull();
   });
@@ -138,7 +147,10 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const info = await api("GET", `/repos/${repoName("fdst")}`);
     expect(info.json.result.source).toBe(`artifacts:${t.namespace}/${repoName("fsrc")}`);
 
-    const all = await api("POST", `/repos/${repoName("fsrc")}/fork`, { name: repoName("fall"), default_branch_only: true });
+    const all = await api("POST", `/repos/${repoName("fsrc")}/fork`, {
+      name: repoName("fall"),
+      default_branch_only: true,
+    });
     const ls2 = await git([...bearer(all.json.result.token), "ls-remote", all.json.result.remote]);
     expect(ls2.stdout.toString()).toContain("refs/heads/side");
   });
@@ -169,7 +181,14 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     await seed(r.remote, r.token);
     const log = await api("GET", `/repos/${repoName("logshape")}/log`);
     expect(Object.keys(log.json.result[0]).toSorted()).toEqual([
-      "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
+      "author",
+      "authoredAt",
+      "committedAt",
+      "committer",
+      "hash",
+      "message",
+      "parents",
+      "treeHash",
     ]);
   });
 
