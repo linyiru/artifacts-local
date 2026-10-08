@@ -121,9 +121,11 @@ Subscribe a queue to events when you start the emulator, as an event subscriptio
 production:
 
 ```sh
+# artifacts: repo.created, .forked, .deleted, .imported for every repo
+# artifacts.repo: pushed, cloned, fetched, token.* for one repo
 npx artifacts-local serve \
-  --subscribe artifacts-events:artifacts \                        # repo.created, .forked, .deleted, .imported
-  --subscribe artifacts-events:artifacts.repo:default/app          # pushed, cloned, fetched, token.*
+  --subscribe artifacts-events:artifacts \
+  --subscribe artifacts-events:artifacts.repo:default/app
 ```
 
 Under `wrangler dev` the shim moves those events into a local Queue named `artifacts-events`, so
