@@ -18,7 +18,8 @@
     "test:contract": "vitest run test/contract",
     "test:live": "ARTIFACTS_LIVE=1 vitest run test/contract",
     "e2e": "scripts/e2e-wrangler.sh",
-    "record": "node scripts/record.ts"
+    "record": "node scripts/record.ts",
+    "build": "node scripts/build.ts"
   },
   "license": "MIT",
   "devDependencies": {

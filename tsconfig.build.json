@@ -1,0 +1,14 @@
+{
+  // Declarations only; JavaScript is bundled by scripts/build.ts with esbuild.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "exclude": ["src/cli.ts"]
+}
