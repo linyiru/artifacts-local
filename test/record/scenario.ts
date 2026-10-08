@@ -67,7 +67,7 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
   // spawn would block the event loop it needs to answer git.
   async function git(label: string, args: string[]) {
     const r = await new Promise<{ status: number; stdout: string; stderr: string }>((resolve, reject) => {
-      const child = spawn("git", args, { env: { ...process.env, ...GIT_ENV } });
+      const child = spawn("git", args, { env: { ...process.env, ...GIT_ENV }, stdio: ["ignore", "pipe", "pipe"] });
       let stdout = "";
       let stderr = "";
       child.stdout.on("data", (d) => (stdout += d));
