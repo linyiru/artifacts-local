@@ -521,6 +521,113 @@ function webhookListener(url, fetchImpl = fetch) {
 	};
 }
 //#endregion
+//#region src/capabilities.ts
+/** Split a pkt-line stream. Throws on malformed framing. */
+function parsePkts(data) {
+	const out = [];
+	let pos = 0;
+	while (pos < data.length) {
+		const len = Number.parseInt(data.subarray(pos, pos + 4).toString("latin1"), 16);
+		if (Number.isNaN(len)) throw new Error(`bad pkt-line length at ${pos}`);
+		if (len === 0) out.push("flush");
+		else if (len === 1) out.push("delim");
+		else if (len < 4 || pos + len > data.length) throw new Error(`bad pkt-line length ${len} at ${pos}`);
+		else out.push(data.subarray(pos + 4, pos + len));
+		pos += len < 4 ? 4 : len;
+	}
+	return out;
+}
+function encodePkts(pkts) {
+	return Buffer.concat(pkts.map((p) => {
+		if (p === "flush") return Buffer.from("0000");
+		if (p === "delim") return Buffer.from("0001");
+		return Buffer.concat([Buffer.from((p.length + 4).toString(16).padStart(4, "0")), p]);
+	}));
+}
+const AGENT = "agent=artifacts-local";
+/** upload-pack v0/v1 capabilities, in the live order. `symref=` and `object-format=` keep git's value. */
+const UPLOAD_PACK_V0 = [
+	AGENT,
+	"object-format",
+	"multi_ack",
+	"multi_ack_detailed",
+	"no-done",
+	"side-band",
+	"side-band-64k",
+	"shallow",
+	"deepen-since",
+	"deepen-not",
+	"deepen-relative",
+	"allow-tip-sha1-in-want",
+	"allow-reachable-sha1-in-want",
+	"no-progress",
+	"symref"
+];
+/** receive-pack capabilities, in the live order: no atomic, push-options, quiet, or report-status-v2. */
+const RECEIVE_PACK = [
+	"report-status",
+	"delete-refs",
+	"ofs-delta",
+	"side-band-64k",
+	"symref"
+];
+/** upload-pack v2 capability lines, in the live order. */
+const UPLOAD_PACK_V2 = [
+	AGENT,
+	"ls-refs=unborn",
+	"fetch=shallow filter sideband-all",
+	"object-format=sha1"
+];
+/** Keep only `allowed` capabilities (by name), in `allowed`'s order; names without `=` in the list keep git's value. */
+function filterCapabilities(caps, allowed) {
+	const byName = new Map(caps.map((c) => [c.split("=")[0], c]));
+	const out = [];
+	for (const want of allowed) if (want.includes("=")) out.push(want);
+	else if (byName.has(want)) out.push(byName.get(want));
+	return out;
+}
+/** Rewrite the capabilities on the first ref line of a v0/v1 advertisement. */
+function rewriteV0(pkts, service) {
+	const allowed = service === "git-upload-pack" ? UPLOAD_PACK_V0 : RECEIVE_PACK;
+	const i = pkts.findIndex((p) => p instanceof Buffer && p.includes(0));
+	if (i === -1) return pkts;
+	const line = pkts[i];
+	const nul = line.indexOf(0);
+	const caps = line.subarray(nul + 1).toString("latin1").replace(/\n$/, "").split(" ").filter(Boolean);
+	const next = [...pkts];
+	next[i] = Buffer.concat([line.subarray(0, nul + 1), Buffer.from(`${filterCapabilities(caps, allowed).join(" ")}\n`)]);
+	return next;
+}
+/** Replace a v2 capability advertisement with the live one, behind a `# service=` line as live sends. */
+function rewriteV2(service) {
+	return [
+		Buffer.from(`# service=${service}\n`),
+		"flush",
+		Buffer.from("version 2\n"),
+		...UPLOAD_PACK_V2.map((c) => Buffer.from(`${c}\n`)),
+		"flush"
+	];
+}
+/** Rewrite an `info/refs` response body. Unrecognised input is returned unchanged. */
+function rewriteAdvertisement(body, service) {
+	let pkts;
+	try {
+		pkts = parsePkts(body);
+	} catch {
+		return body;
+	}
+	if (pkts.some((p) => p instanceof Buffer && p.toString("latin1") === "version 2\n")) return service === "git-upload-pack" ? encodePkts(rewriteV2(service)) : body;
+	return encodePkts(rewriteV0(pkts, service));
+}
+/** git config that makes git honour what the rewritten advertisement offers. */
+const CAPABILITY_CONFIG = [
+	["uploadpack.allowTipSHA1InWant", "true"],
+	["uploadpack.allowReachableSHA1InWant", "true"],
+	["uploadpack.allowSidebandAll", "true"],
+	["receive.advertiseAtomic", "false"],
+	["receive.advertisePushOptions", "false"]
+];
+//#endregion
 //#region src/tokens.ts
 const DEFAULT_TTL = 86400;
 const MAX_TTL = 31536e3;
@@ -1321,7 +1428,7 @@ function runBackend(store, route, req, res, query, opts = {}) {
 		ARTIFACTS_MAX_BLOB_BYTES: String(store.maxBlobBytes)
 	};
 	if (req.headers["content-encoding"]) env.HTTP_CONTENT_ENCODING = String(req.headers["content-encoding"]);
-	const config = [["core.hooksPath", HOOKS_DIR]];
+	const config = [["core.hooksPath", HOOKS_DIR], ...CAPABILITY_CONFIG];
 	const proto = req.headers["git-protocol"];
 	if (route.service === "git-upload-pack" && typeof proto === "string") {
 		env.GIT_PROTOCOL = proto;
@@ -1344,10 +1451,15 @@ function runBackend(store, route, req, res, query, opts = {}) {
 		let headerBuf = Buffer.alloc(0);
 		let headersSent = false;
 		let status = 200;
+		const held = [];
+		const send = (chunk) => {
+			opts.tap?.(chunk);
+			if (opts.transform) held.push(chunk);
+			else res.write(chunk);
+		};
 		child.stdout.on("data", (chunk) => {
 			if (headersSent) {
-				opts.tap?.(chunk);
-				res.write(chunk);
+				send(chunk);
 				return;
 			}
 			headerBuf = Buffer.concat([headerBuf, chunk]);
@@ -1364,20 +1476,20 @@ function runBackend(store, route, req, res, query, opts = {}) {
 				const k = line.slice(0, colon).trim();
 				const v = line.slice(colon + 1).trim();
 				if (k.toLowerCase() === "status") status = Number.parseInt(v, 10);
-				else headers[k] = v;
+				else if (!(opts.transform && k.toLowerCase() === "content-length")) headers[k] = v;
 			}
 			res.writeHead(status, headers);
 			headersSent = true;
 			const rest = headerBuf.subarray(end + sepLen);
-			if (rest.length) {
-				opts.tap?.(rest);
-				res.write(rest);
-			}
+			if (rest.length) send(rest);
 		});
 		child.on("error", reject);
 		child.on("close", (code) => {
 			if (!headersSent) plain(res, 500, "git http-backend failed");
-			else if (!opts.keepOpen) res.end();
+			else {
+				if (opts.transform) res.write(opts.transform(Buffer.concat(held)));
+				if (!opts.keepOpen) res.end();
+			}
 			resolve(code === 0 ? status : 500);
 		});
 		child.stdin.on("error", () => {});
@@ -1418,9 +1530,10 @@ async function handleGit(store, req, res, url) {
 		return true;
 	}
 	const query = url.search.slice(1);
+	const advertise = (body) => rewriteAdvertisement(body, route.service);
 	if (route.service === "git-upload-pack") {
 		if (route.path === "/info/refs") {
-			await runBackend(store, route, req, res, query);
+			await runBackend(store, route, req, res, query, { transform: advertise });
 			return true;
 		}
 		const body = await readBody(req);
@@ -1433,7 +1546,7 @@ async function handleGit(store, req, res, url) {
 		return true;
 	}
 	if (route.path === "/info/refs") {
-		await runBackend(store, route, req, res, query);
+		await runBackend(store, route, req, res, query, { transform: advertise });
 		return true;
 	}
 	const gitDir = store.gitDir(route.ns, route.repo);

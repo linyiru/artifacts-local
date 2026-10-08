@@ -425,6 +425,41 @@ describe("git over HTTP", () => {
     expect(await missing()).toBe(2);
   });
 
+  it("advertises the live service's capabilities, not git's", async () => {
+    const { remote, token } = await createRepo("caps");
+    const w = await work();
+    await w.commit("init");
+    await w.run([...bearer(token), "push", "-q", remote, "main"]);
+    const adv = async (service: string, proto?: string) => {
+      const res = await fetch(`${remote}/info/refs?service=${service}`, {
+        headers: { authorization: `Bearer ${token}`, ...(proto ? { "git-protocol": proto } : {}) },
+      });
+      return (await res.text()).replace(/[0-9a-f]{40}/g, "<sha>");
+    };
+    expect(await adv("git-upload-pack")).toContain(
+      "HEAD\0agent=artifacts-local object-format=sha1 multi_ack multi_ack_detailed no-done side-band side-band-64k shallow deepen-since deepen-not deepen-relative allow-tip-sha1-in-want allow-reachable-sha1-in-want no-progress symref=HEAD:refs/heads/main\n",
+    );
+    expect(await adv("git-receive-pack")).toContain("\0report-status delete-refs ofs-delta side-band-64k\n");
+    expect(await adv("git-upload-pack", "version=2")).toBe(
+      "001e# service=git-upload-pack\n0000000eversion 2\n001aagent=artifacts-local\n0013ls-refs=unborn\n0026fetch=shallow filter sideband-all\n0017object-format=sha1\n0000",
+    );
+  });
+
+  it("refuses git push --atomic and push options, as live does", async () => {
+    const { remote, token } = await createRepo("atomic");
+    const w = await work();
+    await w.commit("init");
+    await w.run(["branch", "other"]);
+    const atomic = await git(["-C", w.dir, ...bearer(token), "push", "--atomic", remote, "main", "other"]);
+    expect(atomic.code).not.toBe(0);
+    expect(atomic.stderr).toContain("the receiving end does not support --atomic push");
+    const options = await git(["-C", w.dir, ...bearer(token), "push", "-o", "ci.skip", remote, "main"]);
+    expect(options.code).not.toBe(0);
+    expect(options.stderr).toContain("the receiving end does not support push options");
+    const plain = await git(["-C", w.dir, ...bearer(token), "push", "-q", remote, "main", "other"]);
+    expect(plain.code, plain.stderr).toBe(0);
+  });
+
   it("supports branch deletion and force push", async () => {
     const { remote, token } = await createRepo("rewrite");
     const w = await work();

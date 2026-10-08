@@ -5,6 +5,7 @@ import { gunzipSync } from "node:zlib";
 import { ArtifactsError } from "./errors.ts";
 import { ISOLATED_GIT_ENV, git, readObjects, parseCommit } from "./git.ts";
 import { isValidNamespaceName, isValidRepoName } from "./names.ts";
+import { CAPABILITY_CONFIG, rewriteAdvertisement } from "./capabilities.ts";
 import { HOOKS_DIR, type Store } from "./store.ts";
 import type { Scope } from "./tokens.ts";
 
@@ -165,6 +166,8 @@ interface BackendOptions {
   /** Leave the response open so the caller can finish bookkeeping before the client sees the end. */
   keepOpen?: boolean;
   tap?: (chunk: Buffer) => void;
+  /** Buffer the whole body and send `transform(body)` instead of streaming it. */
+  transform?: (body: Buffer) => Buffer;
 }
 
 /** Run `git http-backend` as a CGI and stream its response. */
@@ -193,7 +196,7 @@ function runBackend(
   if (req.headers["content-encoding"]) env.HTTP_CONTENT_ENCODING = String(req.headers["content-encoding"]);
   // Per-request config: the packaged hooks (rather than a path written into each repo's config),
   // and partial clone over protocol v2 only. Live honours `--filter` over v2 and ignores it over v0.
-  const config: [string, string][] = [["core.hooksPath", HOOKS_DIR]];
+  const config: [string, string][] = [["core.hooksPath", HOOKS_DIR], ...CAPABILITY_CONFIG];
   // Artifacts supports protocol v2 for upload-pack only; receive-pack always speaks v0/v1.
   const proto = req.headers["git-protocol"];
   if (route.service === "git-upload-pack" && typeof proto === "string") {
@@ -211,10 +214,15 @@ function runBackend(
     let headerBuf = Buffer.alloc(0);
     let headersSent = false;
     let status = 200;
+    const held: Buffer[] = [];
+    const send = (chunk: Buffer) => {
+      opts.tap?.(chunk);
+      if (opts.transform) held.push(chunk);
+      else res.write(chunk);
+    };
     child.stdout.on("data", (chunk: Buffer) => {
       if (headersSent) {
-        opts.tap?.(chunk);
-        res.write(chunk);
+        send(chunk);
         return;
       }
       headerBuf = Buffer.concat([headerBuf, chunk]);
@@ -231,20 +239,20 @@ function runBackend(
         const k = line.slice(0, colon).trim();
         const v = line.slice(colon + 1).trim();
         if (k.toLowerCase() === "status") status = Number.parseInt(v, 10);
-        else headers[k] = v;
+        else if (!(opts.transform && k.toLowerCase() === "content-length")) headers[k] = v;
       }
       res.writeHead(status, headers);
       headersSent = true;
       const rest = headerBuf.subarray(end + sepLen);
-      if (rest.length) {
-        opts.tap?.(rest);
-        res.write(rest);
-      }
+      if (rest.length) send(rest);
     });
     child.on("error", reject);
     child.on("close", (code) => {
       if (!headersSent) plain(res, 500, "git http-backend failed");
-      else if (!opts.keepOpen) res.end();
+      else {
+        if (opts.transform) res.write(opts.transform(Buffer.concat(held)));
+        if (!opts.keepOpen) res.end();
+      }
       resolve(code === 0 ? status : 500);
     });
     child.stdin.on("error", () => {});
@@ -291,9 +299,11 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
   // Live (2026-10-08): `read_only` does not stop a push made with a write token, so neither do we.
 
   const query = url.search.slice(1);
+  // Advertise what the live service advertises, not what git would (see capabilities.ts).
+  const advertise = (body: Buffer) => rewriteAdvertisement(body, route.service);
   if (route.service === "git-upload-pack") {
     if (route.path === "/info/refs") {
-      await runBackend(store, route, req, res, query);
+      await runBackend(store, route, req, res, query, { transform: advertise });
       return true;
     }
     const body = await readBody(req);
@@ -312,7 +322,7 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
   }
 
   if (route.path === "/info/refs") {
-    await runBackend(store, route, req, res, query);
+    await runBackend(store, route, req, res, query, { transform: advertise });
     return true;
   }
   const gitDir = store.gitDir(route.ns, route.repo);
