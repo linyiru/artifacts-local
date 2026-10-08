@@ -17,16 +17,16 @@ import {
 const NOW = Date.parse("2026-10-08T00:00:00Z");
 
 describe("tokens", () => {
-  it("issues tokens in the documented art_v1_<40 hex>?expires=<unix> format", () => {
+  it("issues tokens in the live art_v2_x_<40 hex>?expires=<unix> format", () => {
     const { plaintext, record } = issueToken("read", 3600, NOW);
-    expect(plaintext).toMatch(/^art_v1_[0-9a-f]{40}\?expires=\d+$/);
+    expect(plaintext).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
     const expires = Number(plaintext.split("?expires=")[1]);
     expect(expires).toBe(NOW / 1000 + 3600);
     expect(record.expiresAt).toBe(new Date(expires * 1000).toISOString());
     expect(record.createdAt).toBe(new Date(NOW).toISOString());
     expect(record.scope).toBe("read");
     expect(record.secretHash).toBe(hashSecret(parseSecret(plaintext)!));
-    expect(record.secretHash).not.toContain("art_v1_");
+    expect(record.secretHash).not.toContain("art_v2_x_");
   });
 
   it("defaults to write scope and a 24 hour TTL", () => {
@@ -51,10 +51,11 @@ describe("tokens", () => {
   });
 
   it("parses the secret from a full token or a bare secret", () => {
-    const secret = `art_v1_${"a".repeat(40)}`;
+    const secret = `art_v2_x_${"a".repeat(40)}`;
     expect(parseSecret(`${secret}?expires=123`)).toBe(secret);
     expect(parseSecret(secret)).toBe(secret);
-    expect(parseSecret("art_v1_short")).toBeNull();
+    expect(parseSecret("art_v2_x_short")).toBeNull();
+    expect(parseSecret(`art_v1_${"c".repeat(40)}?expires=1`)).toBe(`art_v1_${"c".repeat(40)}`);
     expect(parseSecret("ghp_xxx")).toBeNull();
     expect(parseSecret("")).toBeNull();
   });

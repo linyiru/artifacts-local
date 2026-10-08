@@ -49,7 +49,7 @@ for delete are documented; the rest are guesses.
 
 | Rule | Source |
 |---|---|
-| Format `art_v1_<40 hex>?expires=<unix seconds>` | [docs] Git protocol |
+| Format `art_v2_x_<40 hex>?expires=<unix seconds>` (the docs say `art_v1_`; both are accepted) | live 2026-10-08 |
 | Scope `read` (clone/fetch/pull) or `write` (also push); default `write` | [docs], [types] |
 | TTL default 86400 s, min 60, max 31536000, else `INVALID_TTL` | [types] |
 | `revokeToken` accepts plaintext or id; `false` if unknown; `INVALID_INPUT` if empty | [types] |

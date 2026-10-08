@@ -62,7 +62,7 @@ export function resolveTtl(ttl: unknown): number {
 export function issueToken(scope: unknown, ttl: unknown, now: number): IssuedToken {
   const s = resolveScope(scope);
   const t = resolveTtl(ttl);
-  const secret = `art_v1_${randomBytes(20).toString("hex")}`;
+  const secret = `art_v2_x_${randomBytes(20).toString("hex")}`;
   const expiresSec = Math.floor(now / 1000) + t;
   const record: TokenRecord = {
     id: newId(),
@@ -76,12 +76,13 @@ export function issueToken(scope: unknown, ttl: unknown, now: number): IssuedTok
 }
 
 /**
- * Accepts the full token (`art_v1_<hex>?expires=<n>`) or just the secret part.
+ * Accepts the full token (`art_v2_x_<hex>?expires=<n>`) or just the secret part. The live service
+ * issues `art_v2_x_`; the docs still describe `art_v1_`, which is accepted too.
  * Returns the secret, or null if the string is not token-shaped.
  */
 export function parseSecret(token: string): string | null {
   const secret = token.split("?expires=")[0] ?? "";
-  return /^art_v1_[0-9a-f]{40}$/.test(secret) ? secret : null;
+  return /^art_(?:v1|v2_x)_[0-9a-f]{40}$/.test(secret) ? secret : null;
 }
 
 export function tokenState(record: TokenRecord, now: number): TokenState {

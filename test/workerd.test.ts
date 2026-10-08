@@ -58,7 +58,7 @@ export default {
       return Response.json({
         createdKeys: Object.keys(created).sort(),
         created,
-        token: { scope: token.scope, plaintextOk: /^art_v1_[0-9a-f]{40}\\?expires=\\d+$/.test(token.plaintext) },
+        token: { scope: token.scope, plaintextOk: /^art_v2_x_[0-9a-f]{40}\\?expires=\\d+$/.test(token.plaintext) },
         tokenTotal: tokens.total,
         revoked,
         badTtl,

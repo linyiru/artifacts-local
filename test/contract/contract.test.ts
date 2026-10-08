@@ -56,7 +56,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const r = await created(repoName("shape"), { description: "contract" });
     expect(Object.keys(r).sort()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
     expect(r.default_branch).toBe("main");
-    expect(r.token).toMatch(/^art_v1_[0-9a-f]{40}\?expires=\d+$/);
+    expect(r.token).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
     expect(r.remote).toMatch(new RegExp(`/git/${t.namespace}/${repoName("shape")}\\.git$`));
   });
 

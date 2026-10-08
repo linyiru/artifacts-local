@@ -58,7 +58,7 @@ describe("namespace methods", () => {
       defaultBranch: "main",
       remote: `${srv.url}/git/default/starter-repo.git`,
     });
-    expect(r.token).toMatch(/^art_v1_[0-9a-f]{40}\?expires=\d+$/);
+    expect(r.token).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
   });
 
   it("create rejects bad and duplicate names", async () => {

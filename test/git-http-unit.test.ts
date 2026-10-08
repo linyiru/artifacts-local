@@ -31,7 +31,7 @@ describe("parseGitRoute", () => {
 });
 
 describe("presentedToken", () => {
-  const secret = `art_v1_${"b".repeat(40)}`;
+  const secret = `art_v2_x_${"b".repeat(40)}`;
   it("reads Bearer tokens", () => {
     expect(presentedToken(`Bearer ${secret}?expires=1`)).toBe(`${secret}?expires=1`);
     expect(presentedToken(`bearer ${secret}`)).toBe(secret);

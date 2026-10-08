@@ -374,7 +374,7 @@ describe("tokens routes", () => {
     await createRepo("toks");
     const t = await call("POST", "/namespaces/default/tokens", { repo: "toks", scope: "read", ttl: 3600 });
     expect(Object.keys(t.json!.result).sort()).toEqual(["expires_at", "id", "plaintext", "scope"]);
-    expect(t.json!.result.plaintext).toMatch(/^art_v1_[0-9a-f]{40}\?expires=\d+$/);
+    expect(t.json!.result.plaintext).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
 
     const list = await call("GET", "/namespaces/default/repos/toks/tokens?per_page=1");
     expect(list.json!.result).toHaveLength(1);

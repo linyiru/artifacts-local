@@ -70,7 +70,7 @@ describe("createRepo", () => {
       status: "ready",
     });
     expect(meta.id).toMatch(/^[0-9a-z]{16}$/);
-    expect(token).toMatch(/^art_v1_[0-9a-f]{40}\?expires=\d+$/);
+    expect(token).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
     expect(await store.getNamespace("default")).toMatchObject({ name: "default" });
     expect(await store.authenticate("default", "app", token, "write")).toBe("ok");
     expect(store.remoteUrl("default", "app")).toBe("http://127.0.0.1:8788/git/default/app.git");
@@ -177,7 +177,7 @@ describe("forkRepo", () => {
       status: "ready",
     });
     expect(f.objects).toBeGreaterThan(0);
-    expect(f.token).toMatch(/^art_v1_/);
+    expect(f.token).toMatch(/^art_v2_x_/);
     const dir = store.gitDir("default", "copy");
     expect(await resolveCommit(dir, "main")).toBe(await resolveCommit(store.gitDir("default", "base"), "main"));
     expect(await resolveCommit(dir, "dev")).toBeNull();
@@ -326,7 +326,7 @@ describe("tokens", () => {
     expect(await store.authenticate("default", "app", secret, "read")).toBe("ok");
     expect(await store.authenticate("default", "app", r.plaintext, "write")).toBe("forbidden");
     expect(await store.authenticate("default", "app", "garbage", "read")).toBe("unauthorized");
-    expect(await store.authenticate("default", "app", `art_v1_${"0".repeat(40)}`, "read")).toBe("unauthorized");
+    expect(await store.authenticate("default", "app", `art_v2_x_${"0".repeat(40)}`, "read")).toBe("unauthorized");
   });
 
   it("does not let one repo's token open another", async () => {
