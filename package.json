@@ -40,7 +40,7 @@
     "test:live": "ARTIFACTS_LIVE=1 vitest run test/contract",
     "e2e": "scripts/e2e-wrangler.sh",
     "record": "node scripts/record.ts",
-    "build": "node scripts/build.ts"
+    "build": "tsdown"
   },
   "license": "MIT",
   "devDependencies": {
@@ -48,7 +48,13 @@
     "@vitest/coverage-v8": "4.1.11",
     "esbuild": "0.28.1",
     "miniflare": "5.20260921.0-alpha",
+    "publint": "0.3.24",
+    "rolldown": "1.2.10",
+    "tsdown": "0.23.0",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
+  },
+  "overrides": {
+    "rolldown": "1.2.10"
   }
 }

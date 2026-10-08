@@ -1,14 +1,9 @@
 #!/usr/bin/env node
-import {
-  handleBinding,
-  startServer
-} from "./chunk-UQUPNCPK.js";
-import "./chunk-Q35FWRES.js";
-
-// src/cli.ts
-import { parseArgs } from "node:util";
+import { a as handleBinding, t as startServer } from "./server-CLAJXrg5.js";
 import { resolve } from "node:path";
-var USAGE = `artifacts-local serve [options]
+import { parseArgs } from "node:util";
+//#region src/cli.ts
+const USAGE = `artifacts-local serve [options]
 
 Local emulator for Cloudflare Artifacts.
 
@@ -24,47 +19,60 @@ Options:
   --allow-insecure-import Allow importing from file paths and http:// URLs
   --track-push-times      Update last_push_at on push (the live service does not)
 `;
-var { values, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    port: { type: "string", default: "8788" },
-    host: { type: "string", default: "127.0.0.1" },
-    "data-dir": { type: "string", default: ".artifacts-local" },
-    "account-id": { type: "string" },
-    "api-token": { type: "string" },
-    "public-url": { type: "string" },
-    webhook: { type: "string" },
-    "async-delay": { type: "string" },
-    "allow-insecure-import": { type: "boolean", default: false },
-    "track-push-times": { type: "boolean", default: false },
-    help: { type: "boolean", short: "h", default: false }
-  }
+const { values, positionals } = parseArgs({
+	allowPositionals: true,
+	options: {
+		port: {
+			type: "string",
+			default: "8788"
+		},
+		host: {
+			type: "string",
+			default: "127.0.0.1"
+		},
+		"data-dir": {
+			type: "string",
+			default: ".artifacts-local"
+		},
+		"account-id": { type: "string" },
+		"api-token": { type: "string" },
+		"public-url": { type: "string" },
+		webhook: { type: "string" },
+		"async-delay": { type: "string" },
+		"allow-insecure-import": {
+			type: "boolean",
+			default: false
+		},
+		"track-push-times": {
+			type: "boolean",
+			default: false
+		},
+		help: {
+			type: "boolean",
+			short: "h",
+			default: false
+		}
+	}
 });
 if (values.help || positionals[0] !== "serve") {
-  process.stdout.write(USAGE);
-  process.exit(values.help ? 0 : 1);
+	process.stdout.write(USAGE);
+	process.exit(values.help ? 0 : 1);
 }
-var server = await startServer(
-  {
-    dataDir: resolve(values["data-dir"]),
-    port: Number(values.port),
-    host: values.host,
-    accountId: values["account-id"],
-    apiToken: values["api-token"],
-    publicUrl: values["public-url"],
-    webhookUrl: values.webhook,
-    asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : void 0,
-    allowInsecureImport: values["allow-insecure-import"],
-    trackPushTimes: values["track-push-times"]
-  },
-  [handleBinding]
-);
-process.stdout.write(`artifacts-local listening on ${server.url}
-`);
-process.stdout.write(`  REST: ${server.url}/client/v4/accounts/<account_id>/artifacts
-`);
-process.stdout.write(`  Git:  ${server.url}/git/<namespace>/<repo>.git
-`);
-for (const sig of ["SIGINT", "SIGTERM"]) {
-  process.on(sig, () => void server.close().then(() => process.exit(0)));
-}
+const server = await startServer({
+	dataDir: resolve(values["data-dir"]),
+	port: Number(values.port),
+	host: values.host,
+	accountId: values["account-id"],
+	apiToken: values["api-token"],
+	publicUrl: values["public-url"],
+	webhookUrl: values.webhook,
+	asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : void 0,
+	allowInsecureImport: values["allow-insecure-import"],
+	trackPushTimes: values["track-push-times"]
+}, [handleBinding]);
+process.stdout.write(`artifacts-local listening on ${server.url}\n`);
+process.stdout.write(`  REST: ${server.url}/client/v4/accounts/<account_id>/artifacts\n`);
+process.stdout.write(`  Git:  ${server.url}/git/<namespace>/<repo>.git\n`);
+for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => void server.close().then(() => process.exit(0)));
+//#endregion
+export {};

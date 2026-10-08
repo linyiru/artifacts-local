@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Build `dist/` with tsdown (Rolldown) instead of a custom esbuild script;
+  declarations are bundled, and publint checks the package on every build.
+
 ## [0.2.1] - 2026-10-08
 
 ### Added
