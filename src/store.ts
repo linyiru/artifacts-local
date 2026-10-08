@@ -523,7 +523,7 @@ export class Store {
     const target = assertRepoName(repoName);
     const url = params.url;
     if (typeof url !== "string" || !url) throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
-    if (!this.allowInsecureImport && !/^https:\/\//.test(url)) {
+    if (!this.allowInsecureImport && !url.startsWith("https://")) {
       throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
     }
     if (params.depth !== undefined && (!Number.isInteger(params.depth) || params.depth < 1)) {
