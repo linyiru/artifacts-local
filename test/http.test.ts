@@ -391,6 +391,40 @@ describe("git over HTTP", () => {
     expect(r0.stderr).toContain("filtering not recognized by server");
   });
 
+  it("fetches one blob on demand from a blobless clone, as ArtifactFS needs", async () => {
+    const { remote, token } = await createRepo("lazy");
+    const w = await work();
+    await w.commit("init", { "a.txt": "aaa\n", "b.txt": "bbb\n", "c.txt": "ccc\n" });
+    await w.run([...bearer(token), "push", "-q", remote, "main"]);
+
+    const dir = join(tmp.path, "lazy-clone");
+    const clone = await git([
+      "-c",
+      "protocol.version=2",
+      ...bearer(token),
+      "clone",
+      "-q",
+      "--no-checkout",
+      "--filter=blob:none",
+      remote,
+      dir,
+    ]);
+    expect(clone.code, clone.stderr).toBe(0);
+    await git(["-C", dir, "config", "http.extraHeader", `Authorization: Bearer ${token}`]);
+    const missing = async () =>
+      (await git(["-C", dir, "rev-list", "--objects", "--all", "--missing=print"])).stdout
+        .toString()
+        .split("\n")
+        .filter((l) => l.startsWith("?")).length;
+
+    expect(await missing()).toBe(3);
+    const blob = (await git(["-C", dir, "rev-parse", "HEAD:b.txt"])).stdout.toString().trim();
+    const read = await git(["-C", dir, "-c", "protocol.version=2", "cat-file", "-p", blob]);
+    expect(read.code, read.stderr).toBe(0);
+    expect(read.stdout.toString()).toBe("bbb\n");
+    expect(await missing()).toBe(2);
+  });
+
   it("supports branch deletion and force push", async () => {
     const { remote, token } = await createRepo("rewrite");
     const w = await work();
