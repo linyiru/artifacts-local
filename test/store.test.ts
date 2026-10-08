@@ -248,7 +248,7 @@ describe("importRepo", () => {
 
   it("imports the remote default branch", async () => {
     const r = await store.importRepo("default", "mirror", { url: source, description: "m" });
-    expect(r.meta).toMatchObject({ defaultBranch: "trunk", source, description: "m", status: "ready" });
+    expect(r.meta).toMatchObject({ defaultBranch: "trunk", source: `git:${source}.git`, description: "m", status: "ready" });
     expect((await log(store.gitDir("default", "mirror"))).length).toBe(2);
     expect(await resolveCommit(store.gitDir("default", "mirror"), "other")).toBeNull();
   });
@@ -289,16 +289,16 @@ describe("importRepo", () => {
 });
 
 describe("importSource / importError", () => {
-  it("abbreviates GitHub URLs", () => {
-    expect(importSource("https://github.com/cloudflare/workers-sdk")).toBe("github:cloudflare/workers-sdk");
-    expect(importSource("https://github.com/a/b.git")).toBe("github:a/b");
-    expect(importSource("https://gitlab.com/g/p.git")).toBe("https://gitlab.com/g/p.git");
+  it("records the source as git:<url>.git, as live does", () => {
+    expect(importSource("https://github.com/octocat/Hello-World")).toBe("git:https://github.com/octocat/Hello-World.git");
+    expect(importSource("https://github.com/a/b.git")).toBe("git:https://github.com/a/b.git");
+    expect(importSource("https://gitlab.com/g/p/")).toBe("git:https://gitlab.com/g/p.git");
   });
 
   it.each([
     ["fatal: could not read Username for 'https://github.com': terminal prompts disabled", "REMOTE_AUTH_REQUIRED"],
     ["fatal: unable to access 'https://x/': Could not resolve host: x", "UPSTREAM_UNAVAILABLE"],
-    ["remote: Repository not found.\nfatal: repository 'https://github.com/a/b/' not found", "NOT_FOUND"],
+    ["fatal: repository 'https://example.com/' not found", "INVALID_URL"],
     ["fatal: 'x' does not appear to be a git repository", "INVALID_URL"],
   ])("maps %j to %s", (stderr, code) => {
     expect(importError(stderr).code).toBe(code);

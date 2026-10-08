@@ -639,10 +639,9 @@ export class Store {
   }
 }
 
-/** `github:owner/repo` for GitHub, as in the types' example; the URL otherwise. */
+/** Live: `git:<url>`, with `.git` appended when missing (`git:https://github.com/o/r.git`). */
 export function importSource(url: string): string {
-  const m = /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url);
-  return m ? `github:${m[1]}/${m[2]}` : url;
+  return `git:${url.replace(/\/+$/, "").replace(/(?<!\.git)$/, ".git")}`;
 }
 
 export function importError(stderr: string, url = ""): ArtifactsError {
@@ -657,8 +656,15 @@ export function importError(stderr: string, url = ""): ArtifactsError {
   if (/could not resolve host|failed to connect|connection refused|timed out|unable to access/.test(s)) {
     return new ArtifactsError("UPSTREAM_UNAVAILABLE", "The remote git server could not be reached", "/url");
   }
+  // A 404 from a git host and a URL that is not a git remote look the same to `git clone`.
+  // Live answers INVALID_URL for the latter (https://example.com/); GitHub answers a missing repo
+  // with 401, which lands on REMOTE_AUTH_REQUIRED above, as live does.
   if (/not found|does not exist|404/.test(s)) {
-    return new ArtifactsError("NOT_FOUND", "The remote repository does not exist", "/url");
+    return new ArtifactsError(
+      "INVALID_URL",
+      "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)",
+      "/url",
+    );
   }
   return new ArtifactsError("INVALID_URL", "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)", "/url");
 }

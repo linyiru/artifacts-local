@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still answer `404`.
 - Forks copy every branch and tag and ignore `default_branch_only`, and no
   longer inherit the source's description, matching the live REST API.
+- Imported repos record `source` as `git:<url>.git`, and a URL that is not a
+  git remote fails with `INVALID_URL`, as live.
 
 ## [0.1.0] - 2026-10-08
 

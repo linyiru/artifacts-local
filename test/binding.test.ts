@@ -98,7 +98,7 @@ describe("namespace methods", () => {
     }));
     expect(r).toMatchObject({ name: "imported", defaultBranch: "trunk", description: "mirror" });
     using repo = await artifacts.get("imported");
-    expect(await repo.info()).toMatchObject({ readOnly: true, source: up.dir });
+    expect(await repo.info()).toMatchObject({ readOnly: true, source: `git:${up.dir}.git` });
   });
 });
 

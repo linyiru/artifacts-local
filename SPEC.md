@@ -91,6 +91,8 @@ namespace delete is `204` with no body (live).
 | Fork copies every branch and tag; `default_branch_only` / `defaultBranchOnly` is accepted and ignored. (The types say the binding defaults to `true`; REST ignores the flag either way.) | live 2026-10-08 (REST); binding unverified |
 | A fork's description is `null` unless given; it is not copied from the source | live 2026-10-08 |
 | Fork `source` is `artifacts:<namespace>/<repo>`; REST fork result adds `objects` | [types], [docs] |
+| Import `source` is `git:<url>` with `.git` appended | live 2026-10-08 |
+| Import errors: `http://` → 10100; a non-git URL → 10104 (400); a GitHub repo that does not exist → 10106 (422, GitHub answers 401). A 404 from any host is treated as 10104 (guess) | live 2026-10-08 |
 | Fork to an existing name → `ALREADY_EXISTS` | [types] |
 | Import: HTTPS only (`INVALID_INPUT`), optional `branch`, `depth` | [types] |
 | REST delete returns `202 Accepted` with `{id}`; binding returns boolean | [docs] |
