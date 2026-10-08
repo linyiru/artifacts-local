@@ -14,7 +14,10 @@
     "start": "node src/cli.ts serve",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:contract": "vitest run test/contract",
+    "test:live": "ARTIFACTS_LIVE=1 vitest run test/contract",
+    "e2e": "scripts/e2e-wrangler.sh"
   },
   "license": "MIT",
   "devDependencies": {
