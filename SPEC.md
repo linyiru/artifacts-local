@@ -64,7 +64,8 @@ namespace delete is `204` with no body (live).
 | Rule | Source |
 |---|---|
 | Remote `…/git/<namespace>/<repo>.git` | [docs] |
-| Auth: `Authorization: Bearer <full token>` or Basic with any non-empty user and the secret (token without `?expires=`) as password | [docs] |
+| Auth: `Authorization: Bearer <full token or secret>`, or Basic with any user (an empty one works live) and the secret (token without `?expires=`) as password | [docs], live 2026-10-08 |
+| No credentials → 401; an invalid, expired, or revoked token → 403 `Invalid or expired token`; a read token pushing → 403 `Insufficient permissions` | live 2026-10-08 |
 | upload-pack: v1 and v2 | [docs] |
 | receive-pack: v1 only; v2 not supported | [docs] |
 | `filter` (partial clone) not supported | [docs] |

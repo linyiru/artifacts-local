@@ -37,7 +37,7 @@ export function parseGitRoute(method: string, pathname: string, query: URLSearch
   return { ns, repo, service, path: tail };
 }
 
-/** Bearer `<full token>`, or Basic with any non-empty user and the token secret as password. */
+/** Bearer `<full token>` or `<secret>`, or Basic with any user (live accepts an empty one) and the secret as password. */
 export function presentedToken(header: string | undefined): string | null {
   if (!header) return null;
   const [scheme, value] = header.split(/\s+/, 2) as [string, string | undefined];
@@ -46,7 +46,7 @@ export function presentedToken(header: string | undefined): string | null {
   if (scheme.toLowerCase() === "basic") {
     const decoded = Buffer.from(value, "base64").toString();
     const colon = decoded.indexOf(":");
-    if (colon < 1) return null;
+    if (colon < 0) return null;
     return decoded.slice(colon + 1) || null;
   }
   return null;
@@ -262,14 +262,19 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
   }
 
   const needed: Scope = route.service === "git-receive-pack" ? "write" : "read";
+  // Live: no credentials → 401 (git then asks for them); a bad, expired, or revoked token → 403.
   const token = presentedToken(req.headers.authorization);
-  const auth = token ? await store.authenticate(route.ns, route.repo, token, needed) : "unauthorized";
-  if (auth === "unauthorized") {
+  if (!token) {
     plain(res, 401, "Authentication required", { "www-authenticate": 'Basic realm="Artifacts"' });
     return true;
   }
+  const auth = await store.authenticate(route.ns, route.repo, token, needed);
+  if (auth === "unauthorized") {
+    plain(res, 403, "Invalid or expired token");
+    return true;
+  }
   if (auth === "forbidden") {
-    plain(res, 403, "This token does not allow push; a write token is required");
+    plain(res, 403, "Insufficient permissions");
     return true;
   }
   if (needed === "write" && meta.readOnly) {

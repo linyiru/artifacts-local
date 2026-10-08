@@ -37,11 +37,11 @@ describe("presentedToken", () => {
     expect(presentedToken(`bearer ${secret}`)).toBe(secret);
   });
 
-  it("reads Basic auth with any non-empty user and the secret as password", () => {
+  it("reads Basic auth with any user, even an empty one, and the secret as password", () => {
     const basic = (s: string) => `Basic ${Buffer.from(s).toString("base64")}`;
     expect(presentedToken(basic(`x:${secret}`))).toBe(secret);
     expect(presentedToken(basic(`anyone:${secret}`))).toBe(secret);
-    expect(presentedToken(basic(`:${secret}`))).toBeNull();
+    expect(presentedToken(basic(`:${secret}`))).toBe(secret);
     expect(presentedToken(basic("x:"))).toBeNull();
     expect(presentedToken(basic("nocolon"))).toBeNull();
   });

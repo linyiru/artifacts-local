@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - REST `raw/:ref/:path` takes the first path segment as the ref and spells
   the text type `text/plain; charset=utf-8`, as live.
 - Unknown routes under `/artifacts` answer a plain-text `404 Not Found`.
+- Git answers an invalid, expired, or revoked token with `403 Invalid or
+  expired token` and a read token pushing with `403 Insufficient permissions`;
+  only a request without credentials gets `401`. Basic auth accepts an empty
+  username.
 
 ## [0.1.0] - 2026-10-08
 

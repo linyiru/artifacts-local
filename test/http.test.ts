@@ -260,6 +260,7 @@ describe("git over HTTP", () => {
     const denied = await git(["-C", w.dir, ...bearer(read.plaintext), "push", remote, "main"]);
     expect(denied.code).not.toBe(0);
     expect(denied.stderr).toContain("403");
+    expect(denied.stderr).toContain("remote: Insufficient permissions");
 
     await w.run([...bearer(token), "push", "-q", remote, "main"]);
     const ls = await git([...bearer(read.plaintext), "ls-remote", remote]);
@@ -271,7 +272,10 @@ describe("git over HTTP", () => {
     const t = (await call("POST", "/namespaces/default/tokens", { repo: "expiry", scope: "read", ttl: 60 })).json!.result;
     expect((await git([...bearer(t.plaintext), "ls-remote", remote])).code).toBe(0);
     clock += 61_000;
-    expect((await git([...bearer(t.plaintext), "ls-remote", remote])).code).not.toBe(0);
+    const expired = await git([...bearer(t.plaintext), "ls-remote", remote]);
+    expect(expired.code).not.toBe(0);
+    expect(expired.stderr).toContain("403");
+    expect(expired.stderr).toContain("remote: Invalid or expired token");
 
     const t2 = (await call("POST", "/namespaces/default/tokens", { repo: "expiry", scope: "read" })).json!.result;
     expect((await call("DELETE", `/namespaces/default/tokens/${t2.id}`)).json!.result).toEqual({ id: t2.id });
