@@ -209,7 +209,9 @@ export class Store {
     return meta;
   }
 
-  async listNamespaces(opts: { limit?: number; cursor?: string } = {}): Promise<{ items: NamespaceMeta[]; nextCursor?: string }> {
+  async listNamespaces(
+    opts: { limit?: number; cursor?: string } = {},
+  ): Promise<{ items: NamespaceMeta[]; total: number; nextCursor?: string }> {
     const limit = opts.limit ?? 50;
     const offset = decodeCursor(opts.cursor);
     let names: string[] = [];
@@ -222,7 +224,7 @@ export class Store {
       if (meta) all.push(meta);
     }
     const items = all.slice(offset, offset + limit);
-    return { items, nextCursor: offset + limit < all.length ? encodeCursor(offset + limit) : undefined };
+    return { items, total: all.length, nextCursor: offset + limit < all.length ? encodeCursor(offset + limit) : undefined };
   }
 
   /** Number of repos in a namespace (REST `repo_count`). */

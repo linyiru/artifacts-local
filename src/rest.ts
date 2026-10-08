@@ -68,6 +68,15 @@ export function repoInfo(store: Store, m: RepoMeta): Record<string, unknown> {
   };
 }
 
+/**
+ * Live pagination info (2026-10-08): cursor-style while more pages follow, offset-style once
+ * everything fits, e.g. `{page: 1, per_page: 50, total_pages: 0, count: 0, total_count: 0}`.
+ */
+function listInfo(nextCursor: string | undefined, perPage: number, count: number, total: number): Record<string, unknown> {
+  if (nextCursor) return { cursor: nextCursor, per_page: perPage, count };
+  return { page: 1, per_page: perPage, total_pages: Math.ceil(total / perPage), count, total_count: total };
+}
+
 function created(store: Store, m: RepoMeta, token: string): Record<string, unknown> {
   return {
     id: m.id,
@@ -180,7 +189,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
       return {
         status: 200,
         result: await Promise.all(page.items.map((n) => namespaceInfo(store, n))),
-        resultInfo: { cursor: page.nextCursor ?? "", per_page: limit, count: page.items.length },
+        resultInfo: listInfo(page.nextCursor, limit, page.items.length, page.total),
       };
     }
     return noRoute();
@@ -242,8 +251,9 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
       });
       return {
         status: 200,
-        result: page.repos.map((m) => repoInfo(store, m)),
-        resultInfo: { cursor: page.nextCursor ?? "", per_page: limit, count: page.repos.length },
+        // REST list entries carry `status`, unlike a single-repo GET.
+        result: page.repos.map((m) => ({ ...repoInfo(store, m), status: m.status })),
+        resultInfo: listInfo(page.nextCursor, limit, page.repos.length, page.total),
       };
     }
     return noRoute();

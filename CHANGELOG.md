@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answers `422`. Token requests are validated before the repo is looked up.
 - REST namespaces use the live shape `{namespace, jurisdiction, repo_count,
   created_at, updated_at}`, with `jurisdiction: "unrestricted"` by default.
+- REST repo list entries include `status`. List `result_info` is
+  cursor-style while more pages follow and offset-style on the last page,
+  as the live service returns it.
 
 ## [0.1.0] - 2026-10-08
 

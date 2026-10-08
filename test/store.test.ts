@@ -61,7 +61,7 @@ describe("namespaces", () => {
   });
 
   it("lists nothing before any namespace exists", async () => {
-    expect(await store.listNamespaces()).toEqual({ items: [], nextCursor: undefined });
+    expect(await store.listNamespaces()).toEqual({ items: [], total: 0, nextCursor: undefined });
     await expect(store.listNamespaces({ cursor: "garbage" })).rejects.toMatchObject({ code: "INVALID_INPUT" });
   });
 });

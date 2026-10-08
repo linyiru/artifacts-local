@@ -129,7 +129,7 @@ describe("namespaces", () => {
     expect(plain.json!.result.jurisdiction).toBe("unrestricted");
     const list = await call("GET", "/namespaces?limit=100");
     expect(list.json!.result.map((n: any) => n.namespace)).toContain("eu-ns");
-    expect(list.json!.result_info).toMatchObject({ per_page: 100 });
+    expect(list.json!.result_info).toMatchObject({ page: 1, per_page: 100, total_pages: 1 });
     expect((await call("GET", "/namespaces/eu-ns")).json!.result.namespace).toBe("eu-ns");
     expect((await call("POST", "/namespaces", { namespace: "eu-ns" })).status).toBe(409);
     expect(c.status).toBe(201);
@@ -184,10 +184,17 @@ describe("repos", () => {
     const p1 = await call("GET", "/namespaces/listing/repos?limit=2");
     expect(p1.json!.result.map((r: any) => r.name)).toEqual(["l3", "l2"]);
     expect(p1.json!.result[0].remote).toContain("/git/listing/l3.git");
-    expect(p1.json!.result_info).toMatchObject({ per_page: 2, count: 2 });
+    expect(p1.json!.result_info).toEqual({ cursor: expect.any(String), per_page: 2, count: 2 });
+    expect(p1.json!.result[0].status).toBe("ready");
     const p2 = await call("GET", `/namespaces/listing/repos?limit=2&cursor=${p1.json!.result_info.cursor}`);
     expect(p2.json!.result.map((r: any) => r.name)).toEqual(["l1"]);
-    expect(p2.json!.result_info.cursor).toBe("");
+    expect(p2.json!.result_info).toEqual({ page: 1, per_page: 2, total_pages: 2, count: 1, total_count: 3 });
+    const none = await call("GET", "/namespaces/no-such-ns/repos");
+    expect(none.json).toMatchObject({
+      success: true,
+      result: [],
+      result_info: { page: 1, per_page: 50, total_pages: 0, count: 0, total_count: 0 },
+    });
     const s = await call("GET", "/namespaces/listing/repos?search=2&sort=name&direction=asc");
     expect(s.json!.result.map((r: any) => r.name)).toEqual(["l2"]);
     expect((await call("GET", "/namespaces/listing/repos?limit=abc")).status).toBe(400);
