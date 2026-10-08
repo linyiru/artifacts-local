@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ArtifactsError } from "./errors.ts";
 import { type TreeEntry, log, readBlob, readCommit, readFileAt, readTree, sniffContentType } from "./git.ts";
+import { restOperation } from "./metrics.ts";
 import type { NamespaceMeta, RepoMeta, RepoSort, Store } from "./store.ts";
 import type { TokenInfo, TokenState } from "./tokens.ts";
 
@@ -388,8 +389,21 @@ export async function handleRest(
     sendError(res, 403, [{ code: 10000, message: "Authentication error" }]);
     return true;
   }
+  const parts = (m[2] ?? "").split("/").filter(Boolean).map(decodeURIComponent);
+  const op = restOperation(req.method ?? "GET", parts);
+  const started = performance.now();
+  const record = (status: number, result?: unknown) => {
+    if (!op) return;
+    // Names that only the request body carries come back in the result.
+    const r = (result ?? {}) as { name?: unknown; namespace?: unknown };
+    if (op.type === "create" && !op.repo && typeof r.name === "string") op.repo = r.name;
+    if (op.type === "namespace_create" && typeof r.namespace === "string") op.namespace = r.namespace;
+    store.metrics.recordOperation(op, status, performance.now() - started);
+  };
   try {
-    send(res, await route(store, req, m[2] ?? "", url.searchParams));
+    const reply = await route(store, req, m[2] ?? "", url.searchParams);
+    send(res, reply);
+    record(reply.status, reply.result);
   } catch (e) {
     if (e instanceof NoRoute) {
       // Live answers unknown Artifacts routes with a plain-text 404, not a v4 envelope.
@@ -397,8 +411,10 @@ export async function handleRest(
       res.end("404 Not Found");
     } else if (e instanceof ArtifactsError) {
       sendError(res, e.status, [e.toApiError()]);
+      record(e.status);
     } else {
       sendError(res, 500, [{ code: 10400, message: e instanceof Error ? e.message : "Internal error" }]);
+      record(500);
     }
   }
   return true;

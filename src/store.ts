@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ArtifactsError } from "./errors.ts";
 import { EventBus } from "./events.ts";
+import { Metrics } from "./metrics.ts";
 import { countObjects, git, gitOk } from "./git.ts";
 import { assertNamespaceName, assertRepoName } from "./names.ts";
 import {
@@ -133,6 +134,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export class Store {
   readonly dataDir: string;
   readonly events: EventBus;
+  readonly metrics: Metrics;
   readonly now: () => number;
   readonly asyncDelayMs: number;
   readonly allowInsecureImport: boolean;
@@ -145,6 +147,7 @@ export class Store {
     this.dataDir = opts.dataDir;
     this.now = opts.now ?? Date.now;
     this.events = opts.events ?? new EventBus(opts.accountId ?? "local", this.now);
+    this.metrics = new Metrics(this.now);
     this.asyncDelayMs = opts.asyncDelayMs ?? 0;
     this.allowInsecureImport = opts.allowInsecureImport ?? false;
     this.maxBlobBytes = opts.maxBlobBytes ?? MAX_BLOB_BYTES;

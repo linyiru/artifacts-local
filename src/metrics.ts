@@ -96,6 +96,39 @@ function quantile(sorted: number[], q: number): number {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))]!;
 }
 
+/** Operations the live service recorded with a duration of 0. */
+const INSTANT = new Set([
+  "create",
+  "delete",
+  "fork",
+  "token_create",
+  "token_revoke",
+  "namespace_create",
+  "namespace_delete",
+]);
+
+export interface Operation {
+  type: string;
+  namespace: string;
+  repo: string;
+}
+
+/** The live event type of a REST call, from its method and path below `/artifacts`. */
+export function restOperation(method: string, parts: string[]): Operation | null {
+  if (parts[0] !== "namespaces") return null;
+  const ns = parts[1] ?? "";
+  const repo = parts[2] === "repos" ? (parts[3] ?? "") : "";
+  const op = (type: string): Operation => ({ type, namespace: ns, repo });
+  if (parts.length === 1) return method === "POST" ? op("namespace_create") : op("namespace_list");
+  if (parts.length === 2) return method === "DELETE" ? op("namespace_delete") : op("namespace_get");
+  if (parts[2] === "tokens") return method === "POST" ? op("token_create") : op("token_revoke");
+  if (parts.length === 3) return method === "POST" ? op("create") : op("read");
+  if (parts.length === 4) return method === "DELETE" ? op("delete") : op("read");
+  if (parts[4] === "fork") return op("fork");
+  if (parts[4] === "import") return op("create");
+  return op("read");
+}
+
 export class Metrics {
   readonly events: MetricEvent[] = [];
   private readonly now: () => number;
@@ -104,6 +137,19 @@ export class Metrics {
   constructor(now: () => number = Date.now, max = 100_000) {
     this.now = now;
     this.max = max;
+  }
+
+  /** Record an operation's outcome: an action, or clientError / serverError by HTTP status. */
+  recordOperation(op: Operation, status: number, durationMs: number): void {
+    const failed = status >= 400;
+    this.record({
+      repositoryNamespace: op.namespace,
+      repositoryName: op.repo,
+      eventKind: failed ? "error" : "action",
+      eventType: !failed ? op.type : status >= 500 ? "serverError" : "clientError",
+      errorMessage: !failed ? "" : `${op.type} ${status >= 500 ? "failed" : "rejected"}`,
+      durationMs: !failed && INSTANT.has(op.type) ? 0 : Math.round(durationMs * 100) / 100,
+    });
   }
 
   record(e: Omit<MetricEvent, "datetime" | "errorMessage"> & { errorMessage?: string }): void {

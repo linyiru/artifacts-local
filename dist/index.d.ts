@@ -108,6 +108,58 @@ export declare class EventBus {
 /** POST each event as JSON to a URL, the local stand-in for a Queue consumer. */
 export declare function webhookListener(url: string, fetchImpl?: typeof fetch): EventListener;
 //#endregion
+//#region src/metrics.d.ts
+type EventKind = "action" | "error";
+interface MetricEvent {
+  datetime: string;
+  repositoryNamespace: string;
+  repositoryName: string;
+  eventKind: EventKind;
+  eventType: string;
+  errorMessage: string;
+  durationMs: number;
+}
+declare const DIMENSIONS: readonly ["repository", "repositoryNamespace", "repositoryName", "eventKind", "eventType", "errorMessage", "date", "datetime", "datetimeMinute", "datetimeFiveMinutes", "datetimeFifteenMinutes", "datetimeHour", "datetimeSixHours"];
+type Dimension = (typeof DIMENSIONS)[number];
+interface Filter {
+  datetime_geq?: string;
+  datetime_leq?: string;
+  repository?: string;
+  repositoryNamespace?: string;
+  repositoryName?: string;
+  eventKind?: EventKind;
+  eventType?: string;
+}
+interface Group {
+  count: number;
+  sum: {
+    durationMs: number;
+  };
+  avg: {
+    durationMs: number;
+  };
+  quantiles: Record<"durationMsP25" | "durationMsP50" | "durationMsP75" | "durationMsP90" | "durationMsP95" | "durationMsP99" | "durationMsP999", number>;
+  dimensions: Partial<Record<Dimension, string>>;
+}
+interface Operation {
+  type: string;
+  namespace: string;
+  repo: string;
+}
+declare class Metrics {
+  readonly events: MetricEvent[];
+  private readonly now;
+  private readonly max;
+  constructor(now?: () => number, max?: number);
+  /** Record an operation's outcome: an action, or clientError / serverError by HTTP status. */
+  recordOperation(op: Operation, status: number, durationMs: number): void;
+  record(e: Omit<MetricEvent, "datetime" | "errorMessage"> & {
+    errorMessage?: string;
+  }): void;
+  /** Group matching events by `by`, like `artifactsEventsAdaptiveGroups`, ordered by count desc. */
+  groups(filter?: Filter, by?: Dimension[], limit?: number): Group[];
+}
+//#endregion
 //#region src/tokens.d.ts
 type Scope = "read" | "write";
 type TokenState = "active" | "expired" | "revoked";
@@ -174,6 +226,7 @@ interface StoreOptions {
 export declare class Store {
   readonly dataDir: string;
   readonly events: EventBus;
+  readonly metrics: Metrics;
   readonly now: () => number;
   readonly asyncDelayMs: number;
   readonly allowInsecureImport: boolean;

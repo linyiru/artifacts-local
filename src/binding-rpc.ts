@@ -150,17 +150,39 @@ async function repoCall(store: Store, ns: string, repo: string, method: string, 
   throw new ArtifactsError("INVALID_INPUT", `Unknown repository method: ${method}`);
 }
 
+/** The live metrics event type of a binding call. */
+const BINDING_EVENT_TYPES: Record<string, string> = {
+  create: "create",
+  import: "create",
+  delete: "delete",
+  fork: "fork",
+  createToken: "token_create",
+  revokeToken: "token_revoke",
+};
+
 export async function dispatch(store: Store, ns: string, req: RpcRequest): Promise<RpcResponse> {
+  const args = Array.isArray(req.args) ? req.args : [];
+  const target = req.repo ?? (["create", "get", "delete"].includes(req.method) ? args[0] : undefined);
+  const op = {
+    type: BINDING_EVENT_TYPES[req.method] ?? "read",
+    namespace: ns,
+    repo: typeof target === "string" ? target : "",
+  };
+  const started = performance.now();
   try {
     assertNamespaceName(ns);
-    const args = Array.isArray(req.args) ? req.args : [];
-    if (req.repo !== undefined) return await repoCall(store, ns, req.repo, req.method, args);
-    return { ok: true, result: await namespaceCall(store, ns, req.method, args) };
+    const out =
+      req.repo !== undefined
+        ? await repoCall(store, ns, req.repo, req.method, args)
+        : ({ ok: true, result: await namespaceCall(store, ns, req.method, args) } as RpcResponse);
+    store.metrics?.recordOperation(op, 200, performance.now() - started);
+    return out;
   } catch (e) {
     const err =
       e instanceof ArtifactsError
         ? e
         : new ArtifactsError("INTERNAL_ERROR", e instanceof Error ? e.message : String(e));
+    store.metrics?.recordOperation(op, err.status, performance.now() - started);
     return { ok: false, error: { code: err.code, numericCode: err.numericCode, message: err.message } };
   }
 }

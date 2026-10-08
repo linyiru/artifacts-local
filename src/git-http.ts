@@ -317,8 +317,14 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
     const body = await readBody(req);
     const kind = classifyUploadPack(body, req.headers["content-encoding"] as string | undefined);
     const pack = new PackDetector();
+    const started = performance.now();
     const status = await runBackend(store, route, req, res, query, { body, tap: (c) => pack.push(c) });
     if (status === 200 && kind !== "none" && pack.found) {
+      store.metrics.recordOperation(
+        { type: "pull", namespace: route.ns, repo: route.repo },
+        200,
+        performance.now() - started,
+      );
       store.events.emit(
         kind === "clone" ? "cf.artifacts.repo.cloned" : "cf.artifacts.repo.fetched",
         route.ns,
@@ -341,7 +347,15 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
     try {
       // Hold the response until push bookkeeping is done, so a client that has seen `git push`
       // succeed can rely on the pushed event already being there.
-      await runBackend(store, route, req, res, query, { keepOpen: true });
+      const started = performance.now();
+      const status = await runBackend(store, route, req, res, query, { keepOpen: true });
+      if (status === 200) {
+        store.metrics.recordOperation(
+          { type: "push", namespace: route.ns, repo: route.repo },
+          200,
+          performance.now() - started,
+        );
+      }
       const after = await refSnapshot(gitDir);
       const payloads = await pushPayloads(gitDir, before, after);
       if (payloads.length) {

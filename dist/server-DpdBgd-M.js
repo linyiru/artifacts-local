@@ -427,17 +427,39 @@ async function repoCall(store, ns, repo, method, args) {
 	}
 	throw new ArtifactsError("INVALID_INPUT", `Unknown repository method: ${method}`);
 }
+/** The live metrics event type of a binding call. */
+const BINDING_EVENT_TYPES = {
+	create: "create",
+	import: "create",
+	delete: "delete",
+	fork: "fork",
+	createToken: "token_create",
+	revokeToken: "token_revoke"
+};
 async function dispatch(store, ns, req) {
+	const args = Array.isArray(req.args) ? req.args : [];
+	const target = req.repo ?? ([
+		"create",
+		"get",
+		"delete"
+	].includes(req.method) ? args[0] : void 0);
+	const op = {
+		type: BINDING_EVENT_TYPES[req.method] ?? "read",
+		namespace: ns,
+		repo: typeof target === "string" ? target : ""
+	};
+	const started = performance.now();
 	try {
 		assertNamespaceName(ns);
-		const args = Array.isArray(req.args) ? req.args : [];
-		if (req.repo !== void 0) return await repoCall(store, ns, req.repo, req.method, args);
-		return {
+		const out = req.repo !== void 0 ? await repoCall(store, ns, req.repo, req.method, args) : {
 			ok: true,
 			result: await namespaceCall(store, ns, req.method, args)
 		};
+		store.metrics?.recordOperation(op, 200, performance.now() - started);
+		return out;
 	} catch (e) {
 		const err = e instanceof ArtifactsError ? e : new ArtifactsError("INTERNAL_ERROR", e instanceof Error ? e.message : String(e));
+		store.metrics?.recordOperation(op, err.status, performance.now() - started);
 		return {
 			ok: false,
 			error: {
@@ -746,6 +768,119 @@ const CAPABILITY_CONFIG = [
 	["receive.advertisePushOptions", "false"]
 ];
 //#endregion
+//#region src/metrics.ts
+function truncate(iso, minutes) {
+	const ms = 6e4 * minutes;
+	return new Date(Math.floor(Date.parse(iso) / ms) * ms).toISOString().replace(".000Z", "Z");
+}
+function dimensionValue(e, d) {
+	switch (d) {
+		case "repository": return e.repositoryNamespace && e.repositoryName ? `${e.repositoryNamespace}/${e.repositoryName}` : "";
+		case "date": return e.datetime.slice(0, 10);
+		case "datetime": return e.datetime;
+		case "datetimeMinute": return truncate(e.datetime, 1);
+		case "datetimeFiveMinutes": return truncate(e.datetime, 5);
+		case "datetimeFifteenMinutes": return truncate(e.datetime, 15);
+		case "datetimeHour": return truncate(e.datetime, 60);
+		case "datetimeSixHours": return truncate(e.datetime, 360);
+		default: return String(e[d]);
+	}
+}
+/** Nearest-rank quantile of sorted values. */
+function quantile(sorted, q) {
+	if (sorted.length === 0) return 0;
+	return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))];
+}
+/** Operations the live service recorded with a duration of 0. */
+const INSTANT = /* @__PURE__ */ new Set([
+	"create",
+	"delete",
+	"fork",
+	"token_create",
+	"token_revoke",
+	"namespace_create",
+	"namespace_delete"
+]);
+/** The live event type of a REST call, from its method and path below `/artifacts`. */
+function restOperation(method, parts) {
+	if (parts[0] !== "namespaces") return null;
+	const ns = parts[1] ?? "";
+	const repo = parts[2] === "repos" ? parts[3] ?? "" : "";
+	const op = (type) => ({
+		type,
+		namespace: ns,
+		repo
+	});
+	if (parts.length === 1) return method === "POST" ? op("namespace_create") : op("namespace_list");
+	if (parts.length === 2) return method === "DELETE" ? op("namespace_delete") : op("namespace_get");
+	if (parts[2] === "tokens") return method === "POST" ? op("token_create") : op("token_revoke");
+	if (parts.length === 3) return method === "POST" ? op("create") : op("read");
+	if (parts.length === 4) return method === "DELETE" ? op("delete") : op("read");
+	if (parts[4] === "fork") return op("fork");
+	if (parts[4] === "import") return op("create");
+	return op("read");
+}
+var Metrics = class {
+	events = [];
+	now;
+	max;
+	constructor(now = Date.now, max = 1e5) {
+		this.now = now;
+		this.max = max;
+	}
+	/** Record an operation's outcome: an action, or clientError / serverError by HTTP status. */
+	recordOperation(op, status, durationMs) {
+		const failed = status >= 400;
+		this.record({
+			repositoryNamespace: op.namespace,
+			repositoryName: op.repo,
+			eventKind: failed ? "error" : "action",
+			eventType: !failed ? op.type : status >= 500 ? "serverError" : "clientError",
+			errorMessage: !failed ? "" : `${op.type} ${status >= 500 ? "failed" : "rejected"}`,
+			durationMs: !failed && INSTANT.has(op.type) ? 0 : Math.round(durationMs * 100) / 100
+		});
+	}
+	record(e) {
+		this.events.push({
+			...e,
+			errorMessage: e.errorMessage ?? "",
+			datetime: new Date(this.now()).toISOString()
+		});
+		if (this.events.length > this.max) this.events.shift();
+	}
+	/** Group matching events by `by`, like `artifactsEventsAdaptiveGroups`, ordered by count desc. */
+	groups(filter = {}, by = [], limit = 100) {
+		const matching = this.events.filter((e) => (!filter.datetime_geq || e.datetime >= filter.datetime_geq) && (!filter.datetime_leq || e.datetime <= filter.datetime_leq) && (!filter.repository || dimensionValue(e, "repository") === filter.repository) && (!filter.repositoryNamespace || e.repositoryNamespace === filter.repositoryNamespace) && (!filter.repositoryName || e.repositoryName === filter.repositoryName) && (!filter.eventKind || e.eventKind === filter.eventKind) && (!filter.eventType || e.eventType === filter.eventType));
+		const buckets = /* @__PURE__ */ new Map();
+		for (const e of matching) {
+			const key = JSON.stringify(by.map((d) => dimensionValue(e, d)));
+			buckets.set(key, [...buckets.get(key) ?? [], e]);
+		}
+		const groups = [];
+		for (const [key, es] of buckets) {
+			const values = JSON.parse(key);
+			const durations = es.map((e) => e.durationMs).toSorted((a, b) => a - b);
+			const sum = durations.reduce((a, b) => a + b, 0);
+			groups.push({
+				count: es.length,
+				sum: { durationMs: sum },
+				avg: { durationMs: sum / es.length },
+				quantiles: {
+					durationMsP25: quantile(durations, .25),
+					durationMsP50: quantile(durations, .5),
+					durationMsP75: quantile(durations, .75),
+					durationMsP90: quantile(durations, .9),
+					durationMsP95: quantile(durations, .95),
+					durationMsP99: quantile(durations, .99),
+					durationMsP999: quantile(durations, .999)
+				},
+				dimensions: Object.fromEntries(by.map((d, i) => [d, values[i]]))
+			});
+		}
+		return groups.toSorted((a, b) => b.count - a.count).slice(0, limit);
+	}
+};
+//#endregion
 //#region src/tokens.ts
 const DEFAULT_TTL = 86400;
 const MAX_TTL = 31536e3;
@@ -858,6 +993,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 var Store = class {
 	dataDir;
 	events;
+	metrics;
 	now;
 	asyncDelayMs;
 	allowInsecureImport;
@@ -869,6 +1005,7 @@ var Store = class {
 		this.dataDir = opts.dataDir;
 		this.now = opts.now ?? Date.now;
 		this.events = opts.events ?? new EventBus(opts.accountId ?? "local", this.now);
+		this.metrics = new Metrics(this.now);
 		this.asyncDelayMs = opts.asyncDelayMs ?? 0;
 		this.allowInsecureImport = opts.allowInsecureImport ?? false;
 		this.maxBlobBytes = opts.maxBlobBytes ?? 33554432;
@@ -1680,10 +1817,18 @@ async function handleGit(store, req, res, url) {
 		const body = await readBody(req);
 		const kind = classifyUploadPack(body, req.headers["content-encoding"]);
 		const pack = new PackDetector();
+		const started = performance.now();
 		if (await runBackend(store, route, req, res, query, {
 			body,
 			tap: (c) => pack.push(c)
-		}) === 200 && kind !== "none" && pack.found) store.events.emit(kind === "clone" ? "cf.artifacts.repo.cloned" : "cf.artifacts.repo.fetched", route.ns, route.repo, {});
+		}) === 200 && kind !== "none" && pack.found) {
+			store.metrics.recordOperation({
+				type: "pull",
+				namespace: route.ns,
+				repo: route.repo
+			}, 200, performance.now() - started);
+			store.events.emit(kind === "clone" ? "cf.artifacts.repo.cloned" : "cf.artifacts.repo.fetched", route.ns, route.repo, {});
+		}
 		return true;
 	}
 	if (route.path === "/info/refs") {
@@ -1694,7 +1839,12 @@ async function handleGit(store, req, res, url) {
 	await withLock(gitDir, async () => {
 		const before = await refSnapshot(gitDir);
 		try {
-			await runBackend(store, route, req, res, query, { keepOpen: true });
+			const started = performance.now();
+			if (await runBackend(store, route, req, res, query, { keepOpen: true }) === 200) store.metrics.recordOperation({
+				type: "push",
+				namespace: route.ns,
+				repo: route.repo
+			}, 200, performance.now() - started);
 			const after = await refSnapshot(gitDir);
 			const payloads = await pushPayloads(gitDir, before, after);
 			if (payloads.length) {
@@ -2105,17 +2255,34 @@ async function handleRest(store, req, res, url, opts = {}) {
 		}]);
 		return true;
 	}
+	const parts = (m[2] ?? "").split("/").filter(Boolean).map(decodeURIComponent);
+	const op = restOperation(req.method ?? "GET", parts);
+	const started = performance.now();
+	const record = (status, result) => {
+		if (!op) return;
+		const r = result ?? {};
+		if (op.type === "create" && !op.repo && typeof r.name === "string") op.repo = r.name;
+		if (op.type === "namespace_create" && typeof r.namespace === "string") op.namespace = r.namespace;
+		store.metrics.recordOperation(op, status, performance.now() - started);
+	};
 	try {
-		send(res, await route(store, req, m[2] ?? "", url.searchParams));
+		const reply = await route(store, req, m[2] ?? "", url.searchParams);
+		send(res, reply);
+		record(reply.status, reply.result);
 	} catch (e) {
 		if (e instanceof NoRoute) {
 			res.writeHead(404, { "content-type": "text/plain; charset=UTF-8" });
 			res.end("404 Not Found");
-		} else if (e instanceof ArtifactsError) sendError(res, e.status, [e.toApiError()]);
-		else sendError(res, 500, [{
-			code: 10400,
-			message: e instanceof Error ? e.message : "Internal error"
-		}]);
+		} else if (e instanceof ArtifactsError) {
+			sendError(res, e.status, [e.toApiError()]);
+			record(e.status);
+		} else {
+			sendError(res, 500, [{
+				code: 10400,
+				message: e instanceof Error ? e.message : "Internal error"
+			}]);
+			record(500);
+		}
 	}
 	return true;
 }
