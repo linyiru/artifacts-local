@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ArtifactsError } from "./errors.ts";
 import { EventBus } from "./events.ts";
+import { DOCUMENTED_MAX_REPO_BYTES } from "./limits.ts";
 import { Metrics } from "./metrics.ts";
 import { countObjects, git, gitOk } from "./git.ts";
 import { assertNamespaceName, assertRepoName } from "./names.ts";
@@ -79,6 +80,8 @@ export interface StoreOptions {
    * unchanged after pushes (checked 2026-10-08, 15 s after the push).
    */
   trackPushTimes?: boolean;
+  /** Largest repository a push may grow to. Defaults to the documented 1 GB. */
+  maxRepoBytes?: number;
 }
 
 /** Hooks shipped with the package; see hooks/pre-receive. */
@@ -157,6 +160,7 @@ export class Store {
   readonly allowInsecureImport: boolean;
   readonly maxBlobBytes: number;
   readonly trackPushTimes: boolean;
+  readonly maxRepoBytes: number;
   /** Base for `remote` URLs, e.g. http://127.0.0.1:8788. Set by the server once it listens. */
   publicUrl = "http://127.0.0.1:8788";
 
@@ -169,6 +173,7 @@ export class Store {
     this.allowInsecureImport = opts.allowInsecureImport ?? false;
     this.maxBlobBytes = opts.maxBlobBytes ?? MAX_BLOB_BYTES;
     this.trackPushTimes = opts.trackPushTimes ?? false;
+    this.maxRepoBytes = opts.maxRepoBytes ?? DOCUMENTED_MAX_REPO_BYTES;
   }
 
   private iso(): string {

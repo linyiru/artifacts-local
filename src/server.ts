@@ -1,6 +1,7 @@
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EventBus, webhookListener } from "./events.ts";
+import { type FaultOptions, Faults, RateLimiter } from "./limits.ts";
 import { DIMENSIONS, type Dimension, type Filter, PRICING, estimateCost } from "./metrics.ts";
 import { handleGit } from "./git-http.ts";
 import { type RestOptions, handleRest, sendError } from "./rest.ts";
@@ -20,6 +21,12 @@ export interface ServerOptions extends RestOptions {
   allowInsecureImport?: boolean;
   maxBlobBytes?: number;
   trackPushTimes?: boolean;
+  /** Largest repository a push may grow to; defaults to the documented 1 GB. */
+  maxRepoBytes?: number;
+  /** Throttle per namespace (REST, binding) and per repo (git), e.g. the documented 2000 per 10 s. */
+  rateLimit?: { requests: number; windowMs: number };
+  /** Answer a share of requests with a 500, and/or add latency. */
+  faults?: FaultOptions;
   now?: () => number;
 }
 
@@ -136,6 +143,78 @@ async function handleLocal(store: Store, req: IncomingMessage, res: ServerRespon
   return false;
 }
 
+interface Target {
+  surface: "rest" | "git" | "binding";
+  /** Rate-limit key: per namespace for the control plane, per repo for git. */
+  key: string;
+  namespace: string;
+  repo: string;
+}
+
+/** The Artifacts surface a request is for, or null for local admin and unknown paths. */
+export function classify(pathname: string): Target | null {
+  const rest = /^\/client\/v4\/accounts\/[^/]+\/artifacts\/namespaces(?:\/([^/]+))?(?:\/repos\/([^/]+))?/.exec(
+    pathname,
+  );
+  if (rest) {
+    const ns = decodeURIComponent(rest[1] ?? "");
+    return { surface: "rest", key: `ns:${ns}`, namespace: ns, repo: decodeURIComponent(rest[2] ?? "") };
+  }
+  const gitPath = /^\/git\/([^/]+)\/([^/]+)\.git\//.exec(pathname);
+  if (gitPath) {
+    return { surface: "git", key: `repo:${gitPath[1]}/${gitPath[2]}`, namespace: gitPath[1]!, repo: gitPath[2]! };
+  }
+  const binding = /^\/__local\/binding\/([^/]+)$/.exec(pathname);
+  if (binding) return { surface: "binding", key: `ns:${binding[1]}`, namespace: binding[1]!, repo: "" };
+  return null;
+}
+
+/** Apply rate limiting and injected faults. True when the request was answered here. */
+async function guard(store: Store, t: Target, limiter: RateLimiter | undefined, faults: Faults, res: ServerResponse) {
+  const answer = (status: number, rest: { code: number; message: string }, headers: Record<string, string> = {}) => {
+    if (t.surface === "git") {
+      res.writeHead(status, { "content-type": "text/plain; charset=utf-8", ...headers });
+      res.end(`${rest.message}\n`);
+    } else {
+      res.writeHead(status, { "content-type": "application/json", ...headers });
+      res.end(JSON.stringify({ result: null, success: false, errors: [rest], messages: [] }));
+    }
+  };
+  if (limiter && !limiter.take(t.key)) {
+    store.metrics.record({
+      repositoryNamespace: t.namespace,
+      repositoryName: t.repo,
+      eventKind: "error",
+      eventType: "rateLimited",
+      errorMessage: "rate limited",
+      durationMs: 0,
+    });
+    // Cloudflare's API answers throttling with 429 and code 971; what Artifacts sends is not documented.
+    answer(
+      429,
+      { code: 971, message: "Please wait and consider throttling your request speed" },
+      {
+        "retry-after": String(limiter.retryAfter(t.key)),
+      },
+    );
+    return true;
+  }
+  await faults.delay();
+  if (faults.shouldFail()) {
+    store.metrics.record({
+      repositoryNamespace: t.namespace,
+      repositoryName: t.repo,
+      eventKind: "error",
+      eventType: "serverError",
+      errorMessage: "injected failure",
+      durationMs: 0,
+    });
+    answer(500, { code: 10400, message: "An unexpected internal error occurred." });
+    return true;
+  }
+  return false;
+}
+
 export async function startServer(opts: ServerOptions, extra: Handler[] = []): Promise<RunningServer> {
   const now = opts.now ?? Date.now;
   const events = new EventBus(opts.accountId ?? "local", now);
@@ -150,6 +229,7 @@ export async function startServer(opts: ServerOptions, extra: Handler[] = []): P
     allowInsecureImport: opts.allowInsecureImport,
     maxBlobBytes: opts.maxBlobBytes,
     trackPushTimes: opts.trackPushTimes,
+    maxRepoBytes: opts.maxRepoBytes,
   });
   const handlers: Handler[] = [
     handleLocal,
@@ -158,9 +238,16 @@ export async function startServer(opts: ServerOptions, extra: Handler[] = []): P
     ...extra,
   ];
 
+  const limiter = opts.rateLimit ? new RateLimiter(opts.rateLimit.requests, opts.rateLimit.windowMs, now) : undefined;
+  const faults = new Faults(opts.faults);
+
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     try {
+      if (limiter || faults.active) {
+        const target = classify(url.pathname);
+        if (target && (await guard(store, target, limiter, faults, res))) return;
+      }
       for (const h of handlers) {
         if (await h(store, req, res, url)) return;
       }

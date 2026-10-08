@@ -200,6 +200,7 @@ function runBackend(
     REMOTE_USER: "artifacts",
     REMOTE_ADDR: req.socket.remoteAddress ?? "127.0.0.1",
     ARTIFACTS_MAX_BLOB_BYTES: String(store.maxBlobBytes),
+    ARTIFACTS_MAX_REPO_BYTES: String(store.maxRepoBytes),
   };
   if (req.headers["content-encoding"]) env.HTTP_CONTENT_ENCODING = String(req.headers["content-encoding"]);
   // Per-request config: the packaged hooks (rather than a path written into each repo's config),

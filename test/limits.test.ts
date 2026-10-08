@@ -2,7 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { git } from "../src/git.ts";
 import { MAX_BLOB_BYTES } from "../src/store.ts";
-import { type RunningServer, startServer } from "../src/server.ts";
+import { randomBytes } from "node:crypto";
+import { handleBinding } from "../src/binding-rpc.ts";
+import { createArtifactsBinding } from "../src/client.ts";
+import { type RunningServer, classify, startServer } from "../src/server.ts";
 import { WorkTree, tempDir } from "./helpers.ts";
 
 let tmp: Awaited<ReturnType<typeof tempDir>>;
@@ -99,5 +102,133 @@ describe("persistence", () => {
     } finally {
       await b.close();
     }
+  });
+});
+
+describe("repository size limit", () => {
+  it("refuses a push that would grow the repository past maxRepoBytes", async () => {
+    const s = await startServer({ dataDir: join(tmp.path, "repo-limit"), maxRepoBytes: 200 * 1024 });
+    try {
+      const { token } = await s.store.createRepo("default", "sized");
+      const remote = s.store.remoteUrl("default", "sized");
+      const w = await WorkTree.init(join(tmp.path, "w-sized"));
+      await w.commit("small", { "small.txt": "x" });
+      const ok = await git(["-C", w.dir, ...bearer(token), "push", remote, "main"]);
+      expect(ok.code, ok.stderr).toBe(0);
+      // Random bytes do not compress, so this alone exceeds the limit.
+      await w.commit("big", { "big.bin": randomBytes(300 * 1024).toString("base64") });
+      const r = await git(["-C", w.dir, ...bearer(token), "push", remote, "main"]);
+      expect(r.code).not.toBe(0);
+      expect(r.stderr).toMatch(
+        /would grow the repository to about \d+ bytes, over the Artifacts limit of 204800 bytes/,
+      );
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("defaults to the documented 1 GB", async () => {
+    const s = await startServer({ dataDir: join(tmp.path, "repo-default") });
+    try {
+      expect(s.store.maxRepoBytes).toBe(1024 ** 3);
+    } finally {
+      await s.close();
+    }
+  });
+});
+
+describe("rate limiting", () => {
+  it("throttles each namespace and each repo separately, and records rateLimited", async () => {
+    const s = await startServer({ dataDir: join(tmp.path, "rate"), rateLimit: { requests: 4, windowMs: 60_000 } });
+    try {
+      const rest = (ns: string) =>
+        fetch(`${s.url}/client/v4/accounts/a/artifacts/namespaces/${ns}/repos`, {
+          headers: { authorization: "Bearer x" },
+        });
+      for (let i = 0; i < 4; i++) expect((await rest("ns-a")).status).toBe(200);
+      const limited = await rest("ns-a");
+      expect(limited.status).toBe(429);
+      expect(limited.headers.get("retry-after")).toMatch(/^\d+$/);
+      expect(await limited.json()).toMatchObject({
+        success: false,
+        errors: [{ code: 971, message: "Please wait and consider throttling your request speed" }],
+      });
+      expect((await rest("ns-b")).status).toBe(200);
+      expect((await fetch(`${s.url}/__local/health`)).status).toBe(200);
+
+      const { token } = await s.store.createRepo("default", "busy");
+      const remote = s.store.remoteUrl("default", "busy");
+      // Each ls-remote is two HTTP requests (info/refs, then ls-refs); the limit counts requests.
+      for (let i = 0; i < 2; i++) expect((await git([...bearer(token), "ls-remote", remote])).code).toBe(0);
+      const refused = await git([...bearer(token), "ls-remote", remote]);
+      expect(refused.code).not.toBe(0);
+      expect(refused.stderr).toContain("429");
+
+      const groups = s.store.metrics.groups({ eventType: "rateLimited" }, ["repository", "repositoryNamespace"]);
+      expect(groups.map((g) => [g.dimensions.repositoryNamespace, g.count])).toEqual(
+        expect.arrayContaining([
+          ["ns-a", 1],
+          ["default", 1],
+        ]),
+      );
+    } finally {
+      await s.close();
+    }
+  });
+});
+
+describe("fault injection", () => {
+  it("answers REST, git, and binding calls with a 500 at failRate 1, and records serverError", async () => {
+    const s = await startServer({ dataDir: join(tmp.path, "faults"), faults: { failRate: 1 } }, [handleBinding]);
+    try {
+      const res = await fetch(`${s.url}/client/v4/accounts/a/artifacts/namespaces/default/repos`, {
+        headers: { authorization: "Bearer x" },
+      });
+      expect(res.status).toBe(500);
+      expect(await res.json()).toMatchObject({ errors: [{ code: 10400 }] });
+      const { token } = await s.store.createRepo("default", "flaky");
+      const ls = await git([...bearer(token), "ls-remote", s.store.remoteUrl("default", "flaky")]);
+      expect(ls.code).not.toBe(0);
+      expect(ls.stderr).toContain("500");
+      const artifacts = createArtifactsBinding({ url: s.url, namespace: "default" });
+      await expect(artifacts.list()).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+      expect((await fetch(`${s.url}/__local/health`)).status).toBe(200);
+      expect(s.store.metrics.groups({ eventType: "serverError" }, ["errorMessage"])[0]).toMatchObject({
+        count: 3,
+        dimensions: { errorMessage: "injected failure" },
+      });
+    } finally {
+      await s.close();
+    }
+  });
+
+  it("adds latency without failing", async () => {
+    const s = await startServer({ dataDir: join(tmp.path, "slowpoke"), faults: { latencyMs: 150 } });
+    try {
+      const t = Date.now();
+      const res = await fetch(`${s.url}/client/v4/accounts/a/artifacts/namespaces/default/repos`, {
+        headers: { authorization: "Bearer x" },
+      });
+      expect(res.status).toBe(200);
+      expect(Date.now() - t).toBeGreaterThanOrEqual(140);
+    } finally {
+      await s.close();
+    }
+  });
+});
+
+describe("classify", () => {
+  it.each([
+    ["/client/v4/accounts/a/artifacts/namespaces", { surface: "rest", key: "ns:", namespace: "", repo: "" }],
+    [
+      "/client/v4/accounts/a/artifacts/namespaces/n/repos/r/log",
+      { surface: "rest", key: "ns:n", namespace: "n", repo: "r" },
+    ],
+    ["/git/n/r.git/info/refs", { surface: "git", key: "repo:n/r", namespace: "n", repo: "r" }],
+    ["/__local/binding/n", { surface: "binding", key: "ns:n", namespace: "n", repo: "" }],
+    ["/__local/health", null],
+    ["/elsewhere", null],
+  ])("%s", (path, expected) => {
+    expect(classify(path)).toEqual(expected);
   });
 });

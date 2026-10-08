@@ -222,6 +222,8 @@ interface StoreOptions {
    * unchanged after pushes (checked 2026-10-08, 15 s after the push).
    */
   trackPushTimes?: boolean;
+  /** Largest repository a push may grow to. Defaults to the documented 1 GB. */
+  maxRepoBytes?: number;
 }
 export declare class Store {
   readonly dataDir: string;
@@ -232,6 +234,7 @@ export declare class Store {
   readonly allowInsecureImport: boolean;
   readonly maxBlobBytes: number;
   readonly trackPushTimes: boolean;
+  readonly maxRepoBytes: number;
   /** Base for `remote` URLs, e.g. http://127.0.0.1:8788. Set by the server once it listens. */
   publicUrl: string;
   constructor(opts: StoreOptions);
@@ -322,6 +325,15 @@ export declare class Store {
 //#region src/binding-rpc.d.ts
 export declare function handleBinding(store: Store, req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean>;
 //#endregion
+//#region src/limits.d.ts
+interface FaultOptions {
+  /** Share of requests answered with a 500, 0–1. */
+  failRate?: number;
+  /** Extra latency added to each request, in ms. */
+  latencyMs?: number;
+  random?: () => number;
+}
+//#endregion
 //#region src/rest.d.ts
 interface RestOptions {
   /** If set, REST calls must present exactly this bearer token. Otherwise any bearer is accepted. */
@@ -349,6 +361,15 @@ interface ServerOptions extends RestOptions {
   allowInsecureImport?: boolean;
   maxBlobBytes?: number;
   trackPushTimes?: boolean;
+  /** Largest repository a push may grow to; defaults to the documented 1 GB. */
+  maxRepoBytes?: number;
+  /** Throttle per namespace (REST, binding) and per repo (git), e.g. the documented 2000 per 10 s. */
+  rateLimit?: {
+    requests: number;
+    windowMs: number;
+  };
+  /** Answer a share of requests with a 500, and/or add latency. */
+  faults?: FaultOptions;
   now?: () => number;
 }
 interface RunningServer {

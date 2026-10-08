@@ -652,6 +652,64 @@ function webhookListener(url, fetchImpl = fetch) {
 	};
 }
 //#endregion
+//#region src/limits.ts
+const DOCUMENTED_MAX_REPO_BYTES = 1024 ** 3;
+/** Fixed-window counter per key: `requests` per `windowMs`. */
+var RateLimiter = class {
+	requests;
+	windowMs;
+	windows = /* @__PURE__ */ new Map();
+	now;
+	constructor(requests, windowMs, now = Date.now) {
+		if (!(requests > 0) || !(windowMs > 0)) throw new Error("rate limit needs positive requests and window");
+		this.requests = requests;
+		this.windowMs = windowMs;
+		this.now = now;
+	}
+	/** Count one request for `key`; false when the window is already full. */
+	take(key) {
+		const t = this.now();
+		const w = this.windows.get(key);
+		if (!w || t - w.start >= this.windowMs) {
+			this.windows.set(key, {
+				start: t,
+				count: 1
+			});
+			return true;
+		}
+		if (w.count >= this.requests) return false;
+		w.count++;
+		return true;
+	}
+	/** Seconds until `key` may send again. */
+	retryAfter(key) {
+		const w = this.windows.get(key);
+		return w ? Math.max(1, Math.ceil((w.start + this.windowMs - this.now()) / 1e3)) : 0;
+	}
+};
+var Faults = class {
+	failRate;
+	latencyMs;
+	random;
+	constructor(opts = {}) {
+		const failRate = opts.failRate ?? 0;
+		if (!(failRate >= 0 && failRate <= 1)) throw new Error("fail rate must be between 0 and 1");
+		if (!((opts.latencyMs ?? 0) >= 0)) throw new Error("latency must be at least 0");
+		this.failRate = failRate;
+		this.latencyMs = opts.latencyMs ?? 0;
+		this.random = opts.random ?? Math.random;
+	}
+	get active() {
+		return this.failRate > 0 || this.latencyMs > 0;
+	}
+	shouldFail() {
+		return this.failRate > 0 && this.random() < this.failRate;
+	}
+	async delay() {
+		if (this.latencyMs > 0) await new Promise((r) => setTimeout(r, this.latencyMs));
+	}
+};
+//#endregion
 //#region src/metrics.ts
 const DIMENSIONS = [
 	"repository",
@@ -1051,6 +1109,7 @@ var Store = class {
 	allowInsecureImport;
 	maxBlobBytes;
 	trackPushTimes;
+	maxRepoBytes;
 	/** Base for `remote` URLs, e.g. http://127.0.0.1:8788. Set by the server once it listens. */
 	publicUrl = "http://127.0.0.1:8788";
 	constructor(opts) {
@@ -1062,6 +1121,7 @@ var Store = class {
 		this.allowInsecureImport = opts.allowInsecureImport ?? false;
 		this.maxBlobBytes = opts.maxBlobBytes ?? 33554432;
 		this.trackPushTimes = opts.trackPushTimes ?? false;
+		this.maxRepoBytes = opts.maxRepoBytes ?? DOCUMENTED_MAX_REPO_BYTES;
 	}
 	iso() {
 		return new Date(this.now()).toISOString();
@@ -1761,7 +1821,8 @@ function runBackend(store, route, req, res, query, opts = {}) {
 		CONTENT_TYPE: req.headers["content-type"] ?? "",
 		REMOTE_USER: "artifacts",
 		REMOTE_ADDR: req.socket.remoteAddress ?? "127.0.0.1",
-		ARTIFACTS_MAX_BLOB_BYTES: String(store.maxBlobBytes)
+		ARTIFACTS_MAX_BLOB_BYTES: String(store.maxBlobBytes),
+		ARTIFACTS_MAX_REPO_BYTES: String(store.maxRepoBytes)
 	};
 	if (req.headers["content-encoding"]) env.HTTP_CONTENT_ENCODING = String(req.headers["content-encoding"]);
 	const config = [["core.hooksPath", HOOKS_DIR], ...CAPABILITY_CONFIG];
@@ -2440,6 +2501,89 @@ async function handleLocal(store, req, res, url) {
 	}
 	return false;
 }
+/** The Artifacts surface a request is for, or null for local admin and unknown paths. */
+function classify(pathname) {
+	const rest = /^\/client\/v4\/accounts\/[^/]+\/artifacts\/namespaces(?:\/([^/]+))?(?:\/repos\/([^/]+))?/.exec(pathname);
+	if (rest) {
+		const ns = decodeURIComponent(rest[1] ?? "");
+		return {
+			surface: "rest",
+			key: `ns:${ns}`,
+			namespace: ns,
+			repo: decodeURIComponent(rest[2] ?? "")
+		};
+	}
+	const gitPath = /^\/git\/([^/]+)\/([^/]+)\.git\//.exec(pathname);
+	if (gitPath) return {
+		surface: "git",
+		key: `repo:${gitPath[1]}/${gitPath[2]}`,
+		namespace: gitPath[1],
+		repo: gitPath[2]
+	};
+	const binding = /^\/__local\/binding\/([^/]+)$/.exec(pathname);
+	if (binding) return {
+		surface: "binding",
+		key: `ns:${binding[1]}`,
+		namespace: binding[1],
+		repo: ""
+	};
+	return null;
+}
+/** Apply rate limiting and injected faults. True when the request was answered here. */
+async function guard(store, t, limiter, faults, res) {
+	const answer = (status, rest, headers = {}) => {
+		if (t.surface === "git") {
+			res.writeHead(status, {
+				"content-type": "text/plain; charset=utf-8",
+				...headers
+			});
+			res.end(`${rest.message}\n`);
+		} else {
+			res.writeHead(status, {
+				"content-type": "application/json",
+				...headers
+			});
+			res.end(JSON.stringify({
+				result: null,
+				success: false,
+				errors: [rest],
+				messages: []
+			}));
+		}
+	};
+	if (limiter && !limiter.take(t.key)) {
+		store.metrics.record({
+			repositoryNamespace: t.namespace,
+			repositoryName: t.repo,
+			eventKind: "error",
+			eventType: "rateLimited",
+			errorMessage: "rate limited",
+			durationMs: 0
+		});
+		answer(429, {
+			code: 971,
+			message: "Please wait and consider throttling your request speed"
+		}, { "retry-after": String(limiter.retryAfter(t.key)) });
+		return true;
+	}
+	await faults.delay();
+	if (faults.shouldFail()) {
+		store.metrics.record({
+			repositoryNamespace: t.namespace,
+			repositoryName: t.repo,
+			eventKind: "error",
+			eventType: "serverError",
+			errorMessage: "injected failure",
+			durationMs: 0
+		});
+		answer(500, {
+			code: 10400,
+			message: "An unexpected internal error occurred."
+		});
+		return true;
+	}
+	return false;
+}
 async function startServer(opts, extra = []) {
 	const now = opts.now ?? Date.now;
 	const events = new EventBus(opts.accountId ?? "local", now);
@@ -2453,7 +2597,8 @@ async function startServer(opts, extra = []) {
 		asyncDelayMs: opts.asyncDelayMs,
 		allowInsecureImport: opts.allowInsecureImport,
 		maxBlobBytes: opts.maxBlobBytes,
-		trackPushTimes: opts.trackPushTimes
+		trackPushTimes: opts.trackPushTimes,
+		maxRepoBytes: opts.maxRepoBytes
 	});
 	const handlers = [
 		handleLocal,
@@ -2461,9 +2606,15 @@ async function startServer(opts, extra = []) {
 		handleGit,
 		...extra
 	];
+	const limiter = opts.rateLimit ? new RateLimiter(opts.rateLimit.requests, opts.rateLimit.windowMs, now) : void 0;
+	const faults = new Faults(opts.faults);
 	const server = createServer(async (req, res) => {
 		const url = new URL(req.url ?? "/", "http://localhost");
 		try {
+			if (limiter || faults.active) {
+				const target = classify(url.pathname);
+				if (target && await guard(store, target, limiter, faults, res)) return;
+			}
 			for (const h of handlers) if (await h(store, req, res, url)) return;
 			sendError(res, 404, [{
 				code: 7e3,

@@ -1,7 +1,8 @@
 #!/bin/sh
-# Reject pushes that carry a file larger than the Artifacts per-file limit (32 MB).
-# ARTIFACTS_MAX_BLOB_BYTES is set by artifacts-local for each push.
+# Reject pushes that carry a file larger than the Artifacts per-file limit (32 MB), or that would
+# grow the repository past its limit (1 GB). artifacts-local sets both limits for each push.
 max=${ARTIFACTS_MAX_BLOB_BYTES:-33554432}
+max_repo=${ARTIFACTS_MAX_REPO_BYTES:-1073741824}
 zero=0000000000000000000000000000000000000000
 while read -r old new ref; do
   [ "$new" = "$zero" ] && continue
@@ -19,4 +20,10 @@ while read -r old new ref; do
     exit 1
   fi
 done
+# Incoming objects sit in a quarantine directory under objects/, so this counts the push too.
+size=$(( $(du -sk "${GIT_DIR:-.}/objects" | cut -f1) * 1024 ))
+if [ "$size" -gt "$max_repo" ]; then
+  echo "error: this push would grow the repository to about $size bytes, over the Artifacts limit of $max_repo bytes" >&2
+  exit 1
+fi
 exit 0
