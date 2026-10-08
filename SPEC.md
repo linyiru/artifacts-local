@@ -95,6 +95,7 @@ namespace delete is `204` with no body (live).
 | A fork's description is `null` unless given; it is not copied from the source | live 2026-10-08 |
 | Fork `source` is `artifacts:<namespace>/<repo>`; REST fork result adds `objects` | [types], [docs] |
 | Import `source` is `git:<url>` with `.git` appended | live 2026-10-08 |
+| Import without `branch` reports `default_branch: "main"` even when the remote's default is another branch; the repo's HEAD and branches are the remote's | live 2026-10-08 |
 | Import errors: `http://` → 10100; a non-git URL → 10104 (400); a GitHub repo that does not exist → 10106 (422, GitHub answers 401). A 404 from any host is treated as 10104 (guess) | live 2026-10-08 |
 | Fork to an existing name → `ALREADY_EXISTS` | [types] |
 | Import: HTTPS only (`INVALID_INPUT`), optional `branch`, `depth` | [types] |

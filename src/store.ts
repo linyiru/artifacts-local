@@ -549,7 +549,10 @@ export class Store {
       await gitOk(["--git-dir", tmp, "remote", "remove", "origin"]);
       head = (await gitOk(["--git-dir", tmp, "symbolic-ref", "--short", "HEAD"])).toString().trim();
     });
-    const final: RepoMeta = { ...ready, defaultBranch: head };
+    // Live (2026-10-08): the metadata says the requested branch, or "main", whatever the remote's
+    // default is. Importing octocat/Hello-World (default master) reported default_branch "main"
+    // while the repo's HEAD and only branch were master.
+    const final: RepoMeta = { ...ready, defaultBranch: params.branch ?? "main" };
     await this.writeMeta(final);
     this.events.emit("cf.artifacts.repo.imported", ns, target, {
       ...this.eventPayload(final),

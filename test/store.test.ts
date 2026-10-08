@@ -248,7 +248,10 @@ describe("importRepo", () => {
 
   it("imports the remote default branch", async () => {
     const r = await store.importRepo("default", "mirror", { url: source, description: "m" });
-    expect(r.meta).toMatchObject({ defaultBranch: "trunk", source: `git:${source}.git`, description: "m", status: "ready" });
+    // The remote's default is trunk, but like the live service the metadata reports "main".
+    expect(r.meta).toMatchObject({ defaultBranch: "main", source: `git:${source}.git`, description: "m", status: "ready" });
+    const head = await gitOk(["--git-dir", store.gitDir("default", "mirror"), "symbolic-ref", "--short", "HEAD"]);
+    expect(head.toString().trim()).toBe("trunk");
     expect((await log(store.gitDir("default", "mirror"))).length).toBe(2);
     expect(await resolveCommit(store.gitDir("default", "mirror"), "other")).toBeNull();
   });

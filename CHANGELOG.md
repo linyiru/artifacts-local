@@ -33,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Forks copy every branch and tag and ignore `default_branch_only`, and no
   longer inherit the source's description, matching the live REST API.
 - Imported repos record `source` as `git:<url>.git`, and a URL that is not a
-  git remote fails with `INVALID_URL`, as live.
+  git remote fails with `INVALID_URL`, as live. Without `branch`, an import
+  reports `default_branch: "main"` whatever the remote's default is, as live.
 - REST `raw/:ref/:path` takes the first path segment as the ref and spells
   the text type `text/plain; charset=utf-8`, as live.
 - Unknown routes under `/artifacts` answer a plain-text `404 Not Found`.
