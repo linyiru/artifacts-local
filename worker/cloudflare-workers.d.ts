@@ -6,4 +6,18 @@ declare module "cloudflare:workers" {
     protected env: Env;
     constructor(ctx: unknown, env: Env);
   }
+  export interface DurableObjectStorage {
+    get<T>(key: string): Promise<T | undefined>;
+    put(key: string, value: unknown): Promise<void>;
+    getAlarm(): Promise<number | null>;
+    setAlarm(when: number): Promise<void>;
+  }
+  export interface DurableObjectState {
+    storage: DurableObjectStorage;
+  }
+  export class DurableObject<Env = unknown> {
+    protected ctx: DurableObjectState;
+    protected env: Env;
+    constructor(ctx: DurableObjectState, env: Env);
+  }
 }
