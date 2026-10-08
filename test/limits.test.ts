@@ -39,7 +39,7 @@ describe("per-file size limit", () => {
     expect(r.stderr).toContain("assets/huge.bin (1025 bytes) exceeds the Artifacts limit of 1024 bytes per file");
     const pushed = srv.store.events.history.filter((e) => e.type === "cf.artifacts.repo.pushed");
     expect(pushed).toHaveLength(1);
-    expect((await srv.store.listRepos("default")).repos[0]!.lastPushAt).not.toBeNull();
+    expect(await srv.store.listRepos("default")).toMatchObject({ total: 1 });
   });
 
   it("checks new branches against everything already in the repo", async () => {
@@ -62,6 +62,21 @@ describe("per-file size limit", () => {
   });
 });
 
+describe("push times", () => {
+  it("updates last_push_at on push only when trackPushTimes is on", async () => {
+    const s = await startServer({ dataDir: join(tmp.path, "tracked"), trackPushTimes: true });
+    try {
+      const { token } = await s.store.createRepo("default", "t");
+      const w = await WorkTree.init(join(tmp.path, "w-tracked"));
+      await w.commit("x");
+      await w.run([...bearer(token), "push", "-q", s.store.remoteUrl("default", "t"), "main"]);
+      expect((await s.store.getReadyRepo("default", "t")).lastPushAt).not.toBeNull();
+    } finally {
+      await s.close();
+    }
+  });
+});
+
 describe("persistence", () => {
   it("keeps repos, history, and tokens across a restart", async () => {
     const dataDir = join(tmp.path, "persist");
@@ -77,7 +92,7 @@ describe("persistence", () => {
     const b = await startServer({ dataDir });
     try {
       const meta = await b.store.getReadyRepo("default", "kept");
-      expect(meta.lastPushAt).not.toBeNull();
+      expect(meta.name).toBe("kept");
       const ls = await git([...bearer(read.plaintext), "ls-remote", b.store.remoteUrl("default", "kept")]);
       expect(ls.code, ls.stderr).toBe(0);
       expect(ls.stdout.toString()).toContain("refs/heads/main");

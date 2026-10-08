@@ -215,7 +215,7 @@ describe("repos", () => {
 });
 
 describe("git over HTTP", () => {
-  it("pushes with Bearer, clones with Basic, and records push metadata", async () => {
+  it("pushes with Bearer, clones with Basic, and leaves last_push_at alone (live)", async () => {
     const { remote, token } = await createRepo("gitflow");
     const w = await work();
     await w.commit("init", { "README.md": "hello\n" });
@@ -227,7 +227,7 @@ describe("git over HTTP", () => {
     await git(["clone", "-q", basicRemote, clone]).then((r) => expect(r.code, r.stderr).toBe(0));
 
     const info = await call("GET", "/namespaces/default/repos/gitflow");
-    expect(info.json!.result.last_push_at).toBe(new Date(clock).toISOString());
+    expect(info.json!.result.last_push_at).toBeNull();
     const types = srv.store.events.history.map((e) => e.type);
     expect(types).toContain("cf.artifacts.repo.pushed");
     expect(types).toContain("cf.artifacts.repo.cloned");

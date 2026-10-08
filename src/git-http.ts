@@ -310,12 +310,12 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
     const before = await refSnapshot(gitDir);
     try {
       // Hold the response until push bookkeeping is done, so a client that has seen `git push`
-      // succeed can rely on last_push_at and the pushed event already being there.
+      // succeed can rely on the pushed event already being there.
       await runBackend(store, route, req, res, query, { keepOpen: true });
       const after = await refSnapshot(gitDir);
       const payloads = await pushPayloads(gitDir, before, after);
       if (payloads.length) {
-        await store.recordPush(route.ns, route.repo);
+        if (store.trackPushTimes) await store.recordPush(route.ns, route.repo);
         for (const p of payloads) store.events.emit("cf.artifacts.repo.pushed", route.ns, route.repo, p);
       }
     } finally {

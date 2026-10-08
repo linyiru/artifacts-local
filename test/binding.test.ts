@@ -116,7 +116,7 @@ describe("repository capability", () => {
     expect(Object.keys(i).sort()).toEqual([
       "createdAt", "defaultBranch", "description", "id", "lastPushAt", "name", "readOnly", "remote", "source", "status", "updatedAt",
     ]);
-    expect(i.lastPushAt).toEqual(expect.any(String));
+    expect(i.lastPushAt).toBeNull();
   });
 
   it("log, readCommit, readTree, readBlob, readFile behave as documented", async () => {

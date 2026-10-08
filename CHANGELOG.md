@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--track-push-times` (`trackPushTimes`) to update `last_push_at` on push.
+
 ### Changed
 
 - Issue repo tokens as `art_v2_x_<40 hex>?expires=<n>`, the format the live
@@ -42,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `read_only` no longer blocks a write-token push: the live service accepts
   such a push, so the emulator does too. Use read tokens to keep a repo
   unchanged.
+- A push no longer updates `last_push_at` or `updated_at`, since the live
+  service leaves them unchanged.
 
 ## [0.1.0] - 2026-10-08
 

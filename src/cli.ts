@@ -18,6 +18,7 @@ Options:
   --webhook <url>         POST every event to this URL
   --async-delay <ms>      Hold forks/imports in progress this long
   --allow-insecure-import Allow importing from file paths and http:// URLs
+  --track-push-times      Update last_push_at on push (the live service does not)
 `;
 
 const { values, positionals } = parseArgs({
@@ -32,6 +33,7 @@ const { values, positionals } = parseArgs({
     webhook: { type: "string" },
     "async-delay": { type: "string" },
     "allow-insecure-import": { type: "boolean", default: false },
+    "track-push-times": { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -52,6 +54,7 @@ const server = await startServer(
     webhookUrl: values.webhook,
     asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : undefined,
     allowInsecureImport: values["allow-insecure-import"],
+    trackPushTimes: values["track-push-times"],
   },
   [handleBinding],
 );

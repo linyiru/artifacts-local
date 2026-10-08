@@ -16,6 +16,7 @@ export interface ServerOptions extends RestOptions {
   asyncDelayMs?: number;
   allowInsecureImport?: boolean;
   maxBlobBytes?: number;
+  trackPushTimes?: boolean;
   now?: () => number;
 }
 
@@ -64,6 +65,7 @@ export async function startServer(opts: ServerOptions, extra: Handler[] = []): P
     asyncDelayMs: opts.asyncDelayMs,
     allowInsecureImport: opts.allowInsecureImport,
     maxBlobBytes: opts.maxBlobBytes,
+    trackPushTimes: opts.trackPushTimes,
   });
   const handlers: Handler[] = [
     handleLocal,

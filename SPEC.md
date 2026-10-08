@@ -69,6 +69,7 @@ namespace delete is `204` with no body (live).
 | upload-pack: v1 and v2 | [docs] |
 | receive-pack: v1 only; v2 not supported | [docs] |
 | `filter` (partial clone) works over protocol v2 and is ignored over v0/v1 ("filtering not recognized by server") | [docs] (v1), live 2026-10-08 |
+| A push does not change `last_push_at` or `updated_at` (unchanged 15 s after a push). `--track-push-times` opts back in | live 2026-10-08 |
 | `read_only` does **not** stop a push made with a write token; it is stored and reported only | live 2026-10-08 |
 
 ## Repo content (binding and REST)

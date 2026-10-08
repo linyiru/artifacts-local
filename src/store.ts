@@ -72,6 +72,11 @@ export interface StoreOptions {
   allowInsecureImport?: boolean;
   /** Largest file a push may carry. Defaults to the documented 32 MB. */
   maxBlobBytes?: number;
+  /**
+   * Update `last_push_at` / `updated_at` on push. Off by default: the live service left both
+   * unchanged after pushes (checked 2026-10-08, 15 s after the push).
+   */
+  trackPushTimes?: boolean;
 }
 
 /** Hooks shipped with the package; see hooks/pre-receive. */
@@ -132,6 +137,7 @@ export class Store {
   readonly asyncDelayMs: number;
   readonly allowInsecureImport: boolean;
   readonly maxBlobBytes: number;
+  readonly trackPushTimes: boolean;
   /** Base for `remote` URLs, e.g. http://127.0.0.1:8788. Set by the server once it listens. */
   publicUrl = "http://127.0.0.1:8788";
 
@@ -142,6 +148,7 @@ export class Store {
     this.asyncDelayMs = opts.asyncDelayMs ?? 0;
     this.allowInsecureImport = opts.allowInsecureImport ?? false;
     this.maxBlobBytes = opts.maxBlobBytes ?? MAX_BLOB_BYTES;
+    this.trackPushTimes = opts.trackPushTimes ?? false;
   }
 
   private iso(): string {

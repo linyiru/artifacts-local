@@ -102,8 +102,9 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     expect(denied.code).not.toBe(0);
     expect(denied.stderr).toMatch(/403/);
 
+    // Live (2026-10-08) never set last_push_at after a push.
     const info = await api("GET", `/repos/${repoName("git")}`);
-    expect(info.json.result.last_push_at).not.toBeNull();
+    expect(info.json.result.last_push_at).toBeNull();
   });
 
   it("accepts Basic auth with the token secret as the password", async () => {
