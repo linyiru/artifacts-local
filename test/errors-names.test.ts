@@ -19,7 +19,7 @@ describe("ArtifactsError", () => {
     expect(err.message).toBe("nope");
     expect(isArtifactsError(err)).toBe(true);
     expect(isArtifactsError(new Error("x"))).toBe(false);
-    expect(Object.keys(err).sort()).toEqual(["code", "name", "numericCode"]);
+    expect(Object.keys(err).toSorted()).toEqual(["code", "name", "numericCode"]);
   });
 
   it("renders the live REST error entry, with source.pointer when known", () => {
@@ -34,7 +34,7 @@ describe("ArtifactsError", () => {
     expect(plain.pointer).toBeUndefined();
     const pointed = new ArtifactsError("INVALID_INPUT", "x", "/name");
     expect(pointed.pointer).toBe("/name");
-    expect(Object.keys(pointed).sort()).toEqual(["code", "name", "numericCode"]);
+    expect(Object.keys(pointed).toSorted()).toEqual(["code", "name", "numericCode"]);
   });
 
   it("answers REMOTE_AUTH_REQUIRED with 422, as the live service does", () => {

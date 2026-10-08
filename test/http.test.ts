@@ -125,7 +125,7 @@ describe("namespaces", () => {
   it("creates, lists, gets, and deletes", async () => {
     const c = await call("POST", "/namespaces", { namespace: "eu-ns", jurisdiction: "eu" });
     expect(c.json!.result).toMatchObject({ namespace: "eu-ns", jurisdiction: "eu", repo_count: 0 });
-    expect(Object.keys(c.json!.result).sort()).toEqual(["created_at", "jurisdiction", "namespace", "repo_count", "updated_at"]);
+    expect(Object.keys(c.json!.result).toSorted()).toEqual(["created_at", "jurisdiction", "namespace", "repo_count", "updated_at"]);
     const plain = await call("POST", "/namespaces", { namespace: "plain-ns" });
     expect(plain.json!.result.jurisdiction).toBe("unrestricted");
     const list = await call("GET", "/namespaces?limit=100");
@@ -149,7 +149,7 @@ describe("repos", () => {
       default_branch: "trunk",
       read_only: false,
     });
-    expect(Object.keys(r.json!.result).sort()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
+    expect(Object.keys(r.json!.result).toSorted()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
     expect(r.json!.result).toMatchObject({
       name: "shape",
       description: "d",
@@ -161,7 +161,7 @@ describe("repos", () => {
   it("gets with the documented RepoWithRemote shape", async () => {
     await createRepo("getme");
     const r = await call("GET", "/namespaces/default/repos/getme");
-    expect(Object.keys(r.json!.result).sort()).toEqual([
+    expect(Object.keys(r.json!.result).toSorted()).toEqual([
       "created_at", "default_branch", "description", "id", "last_push_at", "name", "read_only", "remote", "source", "updated_at",
     ]);
   });
@@ -371,7 +371,7 @@ describe("repo content routes", () => {
   it("reads log with ref, limit, offset", async () => {
     const all = await call("GET", "/namespaces/default/repos/content/log");
     expect(all.json!.result.map((c: any) => c.message)).toEqual(["add binary", "init"]);
-    expect(Object.keys(all.json!.result[0]).sort()).toEqual([
+    expect(Object.keys(all.json!.result[0]).toSorted()).toEqual([
       "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
     ]);
     const one = await call("GET", "/namespaces/default/repos/content/log?ref=feature/x&limit=1&offset=1");
@@ -383,7 +383,7 @@ describe("repo content routes", () => {
     const c = await call("GET", `/namespaces/default/repos/content/commit/${head}`);
     expect(c.json!.result).toMatchObject({ hash: head, message: "add binary" });
     const t = await call("GET", `/namespaces/default/repos/content/tree/${tree}`);
-    expect(t.json!.result.map((e: any) => e.name).sort()).toEqual(["README.md", "bin.dat", "docs"]);
+    expect(t.json!.result.map((e: any) => e.name).toSorted()).toEqual(["README.md", "bin.dat", "docs"]);
     expect((await call("GET", `/namespaces/default/repos/content/commit/${"0".repeat(40)}`)).status).toBe(404);
     expect((await call("GET", `/namespaces/default/repos/content/tree/${"0".repeat(40)}`)).status).toBe(404);
     const bad = await call("GET", "/namespaces/default/repos/content/commit/XYZ");
@@ -436,12 +436,12 @@ describe("tokens routes", () => {
     await createRepo("toks");
     const t = await call("POST", "/namespaces/default/tokens", { repo: "toks", scope: "read", ttl: 3600 });
     expect(t.status).toBe(201);
-    expect(Object.keys(t.json!.result).sort()).toEqual(["expires_at", "id", "plaintext", "scope"]);
+    expect(Object.keys(t.json!.result).toSorted()).toEqual(["expires_at", "id", "plaintext", "scope"]);
     expect(t.json!.result.plaintext).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
 
     const list = await call("GET", "/namespaces/default/repos/toks/tokens?per_page=1");
     expect(list.json!.result).toHaveLength(1);
-    expect(Object.keys(list.json!.result[0]).sort()).toEqual(["created_at", "expires_at", "id", "scope", "state"]);
+    expect(Object.keys(list.json!.result[0]).toSorted()).toEqual(["created_at", "expires_at", "id", "scope", "state"]);
     expect(list.json!.result_info).toEqual({ page: 1, per_page: 1, total_pages: 2, count: 1, total_count: 2 });
 
     await call("DELETE", `/namespaces/default/tokens/${t.json!.result.id}`);
@@ -504,7 +504,7 @@ describe("fork and import routes", () => {
       });
       const body = (await res.json()) as any;
       expect(res.status).toBe(201);
-      expect(Object.keys(body.result).sort()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
+      expect(Object.keys(body.result).toSorted()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
     } finally {
       await loose.close();
     }

@@ -5,7 +5,7 @@ import { tempDir } from "./helpers.ts";
 
 describe("public entry point", () => {
   it("exports the server, store, binding client, and errors", () => {
-    expect(Object.keys(api).sort()).toEqual([
+    expect(Object.keys(api).toSorted()).toEqual([
       "ArtifactsError",
       "EventBus",
       "Store",

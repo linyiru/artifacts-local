@@ -110,7 +110,7 @@ export async function pushPayloads(
 ): Promise<Record<string, unknown>[]> {
   const refs = new Set([...before.keys(), ...after.keys()]);
   const payloads: Record<string, unknown>[] = [];
-  for (const ref of [...refs].sort()) {
+  for (const ref of [...refs].toSorted()) {
     const b = before.get(ref) ?? ZERO;
     const a = after.get(ref) ?? ZERO;
     if (a === b) continue;

@@ -27,7 +27,7 @@ export function normalize(exchanges: Exchange[], namespace: string, extraSecrets
 export function shape(v: unknown): unknown {
   if (Array.isArray(v)) return v.length ? [shape(v[0])] : [];
   if (v && typeof v === "object") {
-    return Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, shape(x)]));
+    return Object.fromEntries(Object.entries(v).toSorted(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, shape(x)]));
   }
   return v === null ? "null" : typeof v;
 }

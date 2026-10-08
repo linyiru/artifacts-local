@@ -54,7 +54,7 @@ async function seed(remote: string, token: string, branches = ["main"]): Promise
 describe(`contract (${LIVE ? "live" : "local"})`, () => {
   it("create returns the documented shape and a token in the documented format", async () => {
     const r = await created(repoName("shape"), { description: "contract" });
-    expect(Object.keys(r).sort()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
+    expect(Object.keys(r).toSorted()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
     expect(r.default_branch).toBe("main");
     expect(r.token).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
     expect(r.remote).toMatch(new RegExp(`/git/${t.namespace}/${repoName("shape")}\\.git$`));
@@ -64,7 +64,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     await created(repoName("get"));
     const r = await api("GET", `/repos/${repoName("get")}`);
     expect(r.json.success).toBe(true);
-    expect(Object.keys(r.json.result).sort()).toEqual([
+    expect(Object.keys(r.json.result).toSorted()).toEqual([
       "created_at", "default_branch", "description", "id", "last_push_at", "name", "read_only", "remote", "source", "updated_at",
     ]);
     expect(r.json.result.last_push_at).toBeNull();
@@ -91,7 +91,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const r = await created(repoName("git"));
     await seed(r.remote, r.token);
     const read = (await api("POST", "/tokens", { repo: repoName("git"), scope: "read", ttl: 600 })).json.result;
-    expect(Object.keys(read).sort()).toEqual(["expires_at", "id", "plaintext", "scope"]);
+    expect(Object.keys(read).toSorted()).toEqual(["expires_at", "id", "plaintext", "scope"]);
 
     const dir = join(tmp.path, `clone-${suffix}`);
     const clone = await git([...bearer(read.plaintext), "clone", "-q", r.remote, dir]);
@@ -168,7 +168,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const r = await created(repoName("logshape"));
     await seed(r.remote, r.token);
     const log = await api("GET", `/repos/${repoName("logshape")}/log`);
-    expect(Object.keys(log.json.result[0]).sort()).toEqual([
+    expect(Object.keys(log.json.result[0]).toSorted()).toEqual([
       "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
     ]);
   });
@@ -179,7 +179,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const list = await api("GET", `/repos/${repoName("toks")}/tokens?state=all&per_page=30&page=1`);
     expect(list.status).toBe(200);
     expect(list.json.result_info).toMatchObject({ page: 1, per_page: 30, total_pages: 1, count: 2, total_count: 2 });
-    expect(Object.keys(list.json.result[0]).sort()).toEqual(["created_at", "expires_at", "id", "scope", "state"]);
+    expect(Object.keys(list.json.result[0]).toSorted()).toEqual(["created_at", "expires_at", "id", "scope", "state"]);
   });
 
   it("revokes tokens by id", async () => {

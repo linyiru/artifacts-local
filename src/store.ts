@@ -223,7 +223,7 @@ export class Store {
     const offset = decodeCursor(opts.cursor);
     let names: string[] = [];
     try {
-      names = (await readdir(this.dataDir)).sort();
+      names = (await readdir(this.dataDir)).toSorted();
     } catch {}
     const all: NamespaceMeta[] = [];
     for (const n of names) {

@@ -51,7 +51,7 @@ describe("namespace methods", () => {
       readOnly: false,
       setDefaultBranch: "main",
     }));
-    expect(Object.keys(r).sort()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
+    expect(Object.keys(r).toSorted()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
     expect(r).toMatchObject({
       name: "starter-repo",
       description: "Repository for automation experiments",
@@ -113,7 +113,7 @@ describe("repository capability", () => {
   it("info returns ArtifactsRepoInfo", async () => {
     using repo = await artifacts.get("content");
     const i = (await repo.info());
-    expect(Object.keys(i).sort()).toEqual([
+    expect(Object.keys(i).toSorted()).toEqual([
       "createdAt", "defaultBranch", "description", "id", "lastPushAt", "name", "readOnly", "remote", "source", "status", "updatedAt",
     ]);
     expect(i.lastPushAt).toBeNull();
@@ -126,14 +126,14 @@ describe("repository capability", () => {
     expect(await repo.log({ ref: "does-not-exist" })).toEqual([]);
 
     const commit = (await repo.readCommit(history[0]!.hash))!;
-    expect(Object.keys(commit).sort()).toEqual([
+    expect(Object.keys(commit).toSorted()).toEqual([
       "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
     ]);
     expect(await repo.readCommit("0".repeat(40))).toBeNull();
     await rejectsWith(repo.readCommit("not-a-hash"), "INVALID_INPUT", 10100);
 
     const tree = (await repo.readTree(history[0]!.treeHash))!;
-    expect(tree.map((e) => e.name).sort()).toEqual(["README.md", "logo.png", "src"]);
+    expect(tree.map((e) => e.name).toSorted()).toEqual(["README.md", "logo.png", "src"]);
     expect(await repo.readTree("0".repeat(40))).toBeNull();
 
     const readme = tree.find((e) => e.name === "README.md")!;
@@ -156,7 +156,7 @@ describe("repository capability", () => {
   it("createToken, listTokens, revokeToken", async () => {
     using repo = await artifacts.get("content");
     const t = (await repo.createToken("read", 3600));
-    expect(Object.keys(t).sort()).toEqual(["expiresAt", "id", "plaintext", "scope"]);
+    expect(Object.keys(t).toSorted()).toEqual(["expiresAt", "id", "plaintext", "scope"]);
     expect(t.scope).toBe("read");
     expect((await repo.createToken()).scope).toBe("write");
     await rejectsWith(repo.createToken("read", 59), "INVALID_TTL", 10103);
@@ -164,7 +164,7 @@ describe("repository capability", () => {
 
     const list = await repo.listTokens();
     expect(list.total).toBe(list.tokens.length);
-    expect(Object.keys(list.tokens[0]!).sort()).toEqual(["createdAt", "expiresAt", "id", "scope", "state"]);
+    expect(Object.keys(list.tokens[0]!).toSorted()).toEqual(["createdAt", "expiresAt", "id", "scope", "state"]);
 
     expect(await repo.revokeToken(t.plaintext)).toBe(true);
     expect(await repo.revokeToken(t.id)).toBe(false);
@@ -175,7 +175,7 @@ describe("repository capability", () => {
   it("fork copies every branch and is listed with its source", async () => {
     using repo = await artifacts.get("content");
     const f = (await repo.fork("content-fork", { description: "Fork for testing" }));
-    expect(Object.keys(f).sort()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
+    expect(Object.keys(f).toSorted()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
     using forked = await artifacts.get("content-fork");
     expect(await forked.info()).toMatchObject({ source: "artifacts:default/content", description: "Fork for testing" });
     expect((await forked.log({ ref: "side" })).length).toBe(2);
