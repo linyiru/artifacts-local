@@ -46,7 +46,7 @@ here works in production. Per the docs, `@cloudflare/workers-types`, and the liv
 | Tarball or zip download | `blob`, `file`, `raw` return one file at a time | Walk the tree, stream a tar through `CompressionStream("gzip")`, cache by commit hash in R2 |
 | Write protection | `read_only: true` is stored and reported, but a write token can still push (checked live 2026-10-08) | Issue only read tokens for repos that must not change |
 | A target namespace on fork | `fork(name)` and REST fork take no namespace (yet the docs' `repo.forked` event example shows a different target namespace) | Clone and push into a repo in the other namespace |
-| `filter` over protocol v0/v1; push over protocol v2 | Clone and fetch over v1/v2, push over v0/v1; `--filter` works over v2 (checked live) | Let git negotiate v2 (the default) for partial clones |
+| `filter` over protocol v0/v1; push over protocol v2 | Clone and fetch over v1/v2, push over v0/v1; `--filter` works over v2, and a blobless clone fetches single blobs on demand (both checked live) | Let git negotiate v2 (the default) for partial clones; [ArtifactFS](https://github.com/cloudflare/artifact-fs) mounts a repo this way |
 
 ## Requirements
 

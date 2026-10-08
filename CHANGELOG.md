@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tests, and a step in the live recording, for fetching one blob on demand
+  from a blobless clone, the access pattern ArtifactFS uses.
+
 ## [0.2.2] - 2026-10-08
 
 Tooling only: the public API, CLI, and emulated behaviour are unchanged.
