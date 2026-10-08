@@ -1,5 +1,11 @@
 # artifacts-local
 
+[![License: MIT](https://img.shields.io/github/license/linyiru/artifacts-local)](LICENSE)
+[![Node >= 24](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white)](package.json)
+[![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
+[![Cloudflare Artifacts](https://img.shields.io/badge/emulates-Cloudflare%20Artifacts-F38020?logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/artifacts/)
+[![Last commit](https://img.shields.io/github/last-commit/linyiru/artifacts-local)](https://github.com/linyiru/artifacts-local/commits/main)
+
 A local emulator for [Cloudflare Artifacts](https://developers.cloudflare.com/artifacts/), so you can
 develop against Artifacts without an account, a network, or a bill. Cloudflare ships no local mode for
 Artifacts (`cf` marks it "will never have a local simulator"; Miniflare only proxies to the real
