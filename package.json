@@ -20,6 +20,8 @@
   "devDependencies": {
     "@types/node": "24.13.6",
     "@vitest/coverage-v8": "4.1.11",
+    "esbuild": "0.28.1",
+    "miniflare": "5.20260921.0-alpha",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
   }
