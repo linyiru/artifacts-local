@@ -50,6 +50,7 @@
   "devDependencies": {
     "@types/node": "24.13.6",
     "@vitest/coverage-v8": "4.1.11",
+    "isomorphic-git": "1.42.2",
     "miniflare": "5.20260921.0-alpha",
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
