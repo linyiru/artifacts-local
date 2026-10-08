@@ -14,14 +14,14 @@ export function isValidRepoName(name: unknown): name is string {
 
 export function assertNamespaceName(name: unknown): string {
   if (!isValidNamespaceName(name)) {
-    throw new ArtifactsError("INVALID_INPUT", `Invalid namespace name: ${JSON.stringify(name)}`);
+    throw new ArtifactsError("INVALID_INPUT", "Invalid namespace name", "/namespace");
   }
   return name;
 }
 
 export function assertRepoName(name: unknown): string {
   if (!isValidRepoName(name)) {
-    throw new ArtifactsError("INVALID_REPO_NAME", `Invalid repository name: ${JSON.stringify(name)}`);
+    throw new ArtifactsError("INVALID_REPO_NAME", "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/", "/name");
   }
   return name;
 }
@@ -30,7 +30,7 @@ const HASH = /^[0-9a-f]{40}$/;
 
 export function assertHash(hash: unknown): string {
   if (typeof hash !== "string" || !HASH.test(hash)) {
-    throw new ArtifactsError("INVALID_INPUT", "Object ID must be a lowercase, 40-character SHA-1");
+    throw new ArtifactsError("INVALID_INPUT", "Invalid SHA-1 hash", "/hash");
   }
   return hash;
 }

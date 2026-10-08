@@ -46,7 +46,7 @@ function send(res: ServerResponse, reply: Reply): void {
   res.end(JSON.stringify(body));
 }
 
-export function sendError(res: ServerResponse, status: number, errors: ApiError[]): void {
+export function sendError(res: ServerResponse, status: number, errors: (ApiError & Record<string, unknown>)[]): void {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify({ result: null, success: false, errors, messages: [] }));
 }
@@ -113,28 +113,28 @@ async function jsonBody(req: IncomingMessage): Promise<Record<string, unknown>> 
 function intParam(q: URLSearchParams, name: string): number | undefined {
   const v = q.get(name);
   if (v === null || v === "") return undefined;
-  if (!/^-?\d+$/.test(v)) throw new ArtifactsError("INVALID_INPUT", `${name} must be an integer`);
+  if (!/^-?\d+$/.test(v)) throw new ArtifactsError("INVALID_INPUT", "Invalid input: expected number, received NaN", `/${name}`);
   return Number(v);
 }
 
 function optString(body: Record<string, unknown>, key: string): string | undefined {
   const v = body[key];
   if (v === undefined || v === null) return undefined;
-  if (typeof v !== "string") throw new ArtifactsError("INVALID_INPUT", `${key} must be a string`);
+  if (typeof v !== "string") throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected string, received ${typeof v}`, `/${key}`);
   return v;
 }
 
 function optBool(body: Record<string, unknown>, key: string): boolean | undefined {
   const v = body[key];
   if (v === undefined || v === null) return undefined;
-  if (typeof v !== "boolean") throw new ArtifactsError("INVALID_INPUT", `${key} must be a boolean`);
+  if (typeof v !== "boolean") throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected boolean, received ${typeof v}`, `/${key}`);
   return v;
 }
 
 function optNumber(body: Record<string, unknown>, key: string): number | undefined {
   const v = body[key];
   if (v === undefined || v === null) return undefined;
-  if (typeof v !== "number") throw new ArtifactsError("INVALID_INPUT", `${key} must be a number`);
+  if (typeof v !== "number") throw new ArtifactsError("INVALID_INPUT", `Invalid input: expected number, received ${typeof v}`, `/${key}`);
   return v;
 }
 
@@ -196,7 +196,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
     if (parts.length === 3 && method === "POST") {
       const body = await jsonBody(req);
       const repo = body.repo;
-      if (typeof repo !== "string" || !repo) throw new ArtifactsError("INVALID_INPUT", "repo is required");
+      if (typeof repo !== "string" || !repo) throw new ArtifactsError("INVALID_INPUT", "repo required", "/repo");
       const t = await store.createToken(ns, repo, body.scope, body.ttl);
       return {
         status: 201,
@@ -382,7 +382,7 @@ export async function handleRest(
     if (e instanceof NoRoute) {
       sendError(res, 404, [{ code: 7000, message: "No route for that URI" }]);
     } else if (e instanceof ArtifactsError) {
-      sendError(res, e.status, [{ code: e.numericCode, message: e.message }]);
+      sendError(res, e.status, [e.toApiError()]);
     } else {
       sendError(res, 500, [{ code: 10400, message: e instanceof Error ? e.message : "Internal error" }]);
     }

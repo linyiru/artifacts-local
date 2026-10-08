@@ -22,6 +22,25 @@ describe("ArtifactsError", () => {
     expect(Object.keys(err).sort()).toEqual(["code", "name", "numericCode"]);
   });
 
+  it("renders the live REST error entry, with source.pointer when known", () => {
+    expect(new ArtifactsError("INVALID_TTL", "ttl bad", "/ttl").toApiError()).toEqual({
+      code: 10103,
+      message: "ttl bad",
+      documentation_url: "https://developers.cloudflare.com/artifacts/api/errors#10103",
+      source: { pointer: "/ttl" },
+    });
+    const plain = new ArtifactsError("NOT_FOUND", "Repository not found");
+    expect(plain.toApiError()).not.toHaveProperty("source");
+    expect(plain.pointer).toBeUndefined();
+    const pointed = new ArtifactsError("INVALID_INPUT", "x", "/name");
+    expect(pointed.pointer).toBe("/name");
+    expect(Object.keys(pointed).sort()).toEqual(["code", "name", "numericCode"]);
+  });
+
+  it("answers REMOTE_AUTH_REQUIRED with 422, as the live service does", () => {
+    expect(new ArtifactsError("REMOTE_AUTH_REQUIRED", "").status).toBe(422);
+  });
+
   it.each([
     ["ALREADY_EXISTS", 10201],
     ["IMPORT_IN_PROGRESS", 10302],

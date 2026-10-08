@@ -48,13 +48,13 @@ export function hashSecret(secret: string): string {
 export function resolveScope(scope: unknown): Scope {
   if (scope === undefined || scope === null) return "write";
   if (scope === "read" || scope === "write") return scope;
-  throw new ArtifactsError("INVALID_INPUT", `Invalid token scope: ${JSON.stringify(scope)}`);
+  throw new ArtifactsError("INVALID_INPUT", `Invalid option: expected one of "read"|"write"`, "/scope");
 }
 
 export function resolveTtl(ttl: unknown): number {
   if (ttl === undefined || ttl === null) return DEFAULT_TTL;
   if (typeof ttl !== "number" || !Number.isInteger(ttl) || ttl < MIN_TTL || ttl > MAX_TTL) {
-    throw new ArtifactsError("INVALID_TTL", `Token TTL must be an integer between ${MIN_TTL} and ${MAX_TTL} seconds`);
+    throw new ArtifactsError("INVALID_TTL", `ttl must be between ${MIN_TTL} and ${MAX_TTL} seconds`, "/ttl");
   }
   return ttl;
 }

@@ -14,6 +14,8 @@ import {
   issueToken,
   newId,
   parseSecret,
+  resolveScope,
+  resolveTtl,
   scopeAllows,
   toTokenInfo,
   tokenState,
@@ -179,7 +181,7 @@ export class Store {
       await mkdir(this.namespaceDir(ns));
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === "EEXIST") {
-        throw new ArtifactsError("ALREADY_EXISTS", `Namespace ${ns} already exists`);
+        throw new ArtifactsError("ALREADY_EXISTS", "Namespace already exists");
       }
       throw e;
     }
@@ -201,7 +203,7 @@ export class Store {
   async getNamespace(name: unknown): Promise<NamespaceMeta> {
     const ns = assertNamespaceName(name);
     const meta = await readJson<NamespaceMeta>(join(this.namespaceDir(ns), "namespace.json"));
-    if (!meta) throw new ArtifactsError("NOT_FOUND", `Namespace ${ns} not found`);
+    if (!meta) throw new ArtifactsError("NOT_FOUND", "Namespace not found");
     return meta;
   }
 
@@ -242,7 +244,7 @@ export class Store {
     assertNamespaceName(ns);
     assertRepoName(repo);
     const meta = await this.readMeta(ns, repo);
-    if (!meta) throw new ArtifactsError("NOT_FOUND", `Repository ${repo} not found`);
+    if (!meta) throw new ArtifactsError("NOT_FOUND", "Repository not found");
     if (meta.status === "forking") throw new ArtifactsError("FORK_IN_PROGRESS", `Repository ${repo} is still being forked`);
     if (meta.status === "importing") throw new ArtifactsError("IMPORT_IN_PROGRESS", `Repository ${repo} is still being imported`);
     return meta;
@@ -258,7 +260,7 @@ export class Store {
       await mkdir(dir);
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === "EEXIST") {
-        throw new ArtifactsError("ALREADY_EXISTS", `Repository ${repo} already exists`);
+        throw new ArtifactsError("ALREADY_EXISTS", `repo already exists: ${repo}`);
       }
       throw e;
     }
@@ -360,13 +362,23 @@ export class Store {
     const ns = assertNamespaceName(nsName);
     const limit = opts.limit ?? 50;
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
-      throw new ArtifactsError("INVALID_INPUT", "limit must be an integer between 1 and 200");
+      throw new ArtifactsError(
+        "INVALID_INPUT",
+        limit < 1 ? "Too small: expected number to be >0" : "Too big: expected number to be <=200",
+        "/limit",
+      );
     }
     const sort = opts.sort ?? "created_at";
-    if (!(sort in SORT_FIELDS)) throw new ArtifactsError("INVALID_INPUT", `Invalid sort: ${JSON.stringify(sort)}`);
+    if (!(sort in SORT_FIELDS)) {
+      throw new ArtifactsError(
+        "INVALID_INPUT",
+        'Invalid option: expected one of "created_at"|"updated_at"|"last_push_at"|"name"',
+        "/sort",
+      );
+    }
     const direction = opts.direction ?? "desc";
     if (direction !== "asc" && direction !== "desc") {
-      throw new ArtifactsError("INVALID_INPUT", `Invalid direction: ${JSON.stringify(direction)}`);
+      throw new ArtifactsError("INVALID_INPUT", 'Invalid option: expected one of "asc"|"desc"', "/direction");
     }
     const offset = decodeCursor(opts.cursor);
 
@@ -473,15 +485,15 @@ export class Store {
     const ns = assertNamespaceName(nsName);
     const target = assertRepoName(repoName);
     const url = params.url;
-    if (typeof url !== "string" || !url) throw new ArtifactsError("INVALID_INPUT", "url is required");
+    if (typeof url !== "string" || !url) throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
     if (!this.allowInsecureImport && !/^https:\/\//.test(url)) {
-      throw new ArtifactsError("INVALID_INPUT", "Source URL must be HTTPS");
+      throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
     }
     if (params.depth !== undefined && (!Number.isInteger(params.depth) || params.depth < 1)) {
-      throw new ArtifactsError("INVALID_INPUT", "depth must be a positive integer");
+      throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >0", "/depth");
     }
     if (params.branch !== undefined && (typeof params.branch !== "string" || !params.branch || params.branch.startsWith("-"))) {
-      throw new ArtifactsError("INVALID_INPUT", "Invalid branch");
+      throw new ArtifactsError("INVALID_INPUT", "Invalid branch", "/branch");
     }
     const dir = await this.reserve(ns, target);
     const meta = this.newMeta(ns, target, {
@@ -496,7 +508,7 @@ export class Store {
       if (params.branch) args.push("--branch", params.branch);
       if (params.depth) args.push("--depth", String(params.depth));
       const r = await git([...args, "--end-of-options", url, tmp]);
-      if (r.code !== 0) throw importError(r.stderr);
+      if (r.code !== 0) throw importError(r.stderr, url.endsWith(".git") ? url : `${url}.git`);
       await gitOk(["--git-dir", tmp, "remote", "remove", "origin"]);
       head = (await gitOk(["--git-dir", tmp, "symbolic-ref", "--short", "HEAD"])).toString().trim();
     });
@@ -527,6 +539,9 @@ export class Store {
   }
 
   async createToken(ns: string, repo: string, scope: unknown, ttl: unknown): Promise<{ info: TokenInfo; plaintext: string }> {
+    // Validate the request before looking the repo up, as a schema-validating API would.
+    resolveScope(scope);
+    resolveTtl(ttl);
     await this.getReadyRepo(ns, repo);
     const { record, plaintext } = issueToken(scope, ttl, this.now());
     const tokens = await this.readTokens(ns, repo);
@@ -596,16 +611,20 @@ export function importSource(url: string): string {
   return m ? `github:${m[1]}/${m[2]}` : url;
 }
 
-export function importError(stderr: string): ArtifactsError {
+export function importError(stderr: string, url = ""): ArtifactsError {
   const s = stderr.toLowerCase();
   if (/could not read username|authentication failed|terminal prompts disabled|401|403/.test(s)) {
-    return new ArtifactsError("REMOTE_AUTH_REQUIRED", "The remote repository requires authentication");
+    return new ArtifactsError(
+      "REMOTE_AUTH_REQUIRED",
+      `Repository "${url}" requires authentication (HTTP 401). Only public repositories can be imported.`,
+      "/url",
+    );
   }
   if (/could not resolve host|failed to connect|connection refused|timed out|unable to access/.test(s)) {
-    return new ArtifactsError("UPSTREAM_UNAVAILABLE", "The remote git server could not be reached");
+    return new ArtifactsError("UPSTREAM_UNAVAILABLE", "The remote git server could not be reached", "/url");
   }
   if (/not found|does not exist|404/.test(s)) {
-    return new ArtifactsError("NOT_FOUND", "The remote repository does not exist");
+    return new ArtifactsError("NOT_FOUND", "The remote repository does not exist", "/url");
   }
-  return new ArtifactsError("INVALID_URL", "The source URL does not point to a git repository");
+  return new ArtifactsError("INVALID_URL", "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)", "/url");
 }

@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `authoredAt`, `committedAt`), as the live service does.
 - REST create, fork, import, and token creation answer `201 Created`;
   namespace deletion answers `204 No Content`.
+- REST errors carry `documentation_url` and, for invalid fields,
+  `source.pointer`, with the live service's messages. `REMOTE_AUTH_REQUIRED`
+  answers `422`. Token requests are validated before the repo is looked up.
 
 ## [0.1.0] - 2026-10-08
 

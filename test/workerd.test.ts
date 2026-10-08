@@ -193,7 +193,7 @@ describe("shim inside workerd", () => {
   it("throws ArtifactsError NOT_FOUND from get()", async () => {
     expect(await scenario("missing")).toEqual({
       ok: false,
-      error: { name: "ArtifactsError", code: "NOT_FOUND", numericCode: 10200, message: "Repository does-not-exist not found", isError: true },
+      error: { name: "ArtifactsError", code: "NOT_FOUND", numericCode: 10200, message: "Repository not found", isError: true },
     });
   });
 

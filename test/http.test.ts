@@ -96,6 +96,24 @@ describe("REST envelope and auth", () => {
     expect(outside.status).toBe(404);
   });
 
+  it("shapes errors like the live service", async () => {
+    const bad = await call("POST", "/namespaces/default/repos", { name: "-x" });
+    expect(bad.json!.errors).toEqual([
+      {
+        code: 10101,
+        message: "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/",
+        documentation_url: "https://developers.cloudflare.com/artifacts/api/errors#10101",
+        source: { pointer: "/name" },
+      },
+    ]);
+    const missing = await call("GET", "/namespaces/default/repos/nope-404");
+    expect(missing.json!.errors).toEqual([
+      { code: 10200, message: "Repository not found", documentation_url: "https://developers.cloudflare.com/artifacts/api/errors#10200" },
+    ]);
+    const ttl = await call("POST", "/namespaces/default/tokens", { repo: "x", ttl: 1 });
+    expect(ttl.json!.errors[0]).toMatchObject({ message: "ttl must be between 60 and 31536000 seconds", source: { pointer: "/ttl" } });
+  });
+
   it("rejects malformed JSON bodies", async () => {
     expect((await call("POST", "/namespaces", "{oops")).json!.errors[0].code).toBe(10100);
     expect((await call("POST", "/namespaces", "[1]")).json!.errors[0].code).toBe(10100);

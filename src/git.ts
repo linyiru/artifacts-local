@@ -203,7 +203,7 @@ export async function readTree(gitDir: string, hash: string): Promise<TreeEntry[
   assertHash(hash);
   const obj = await readObject(gitDir, hash);
   if (!obj) return null;
-  if (obj.type !== "tree") throw new ArtifactsError("INTERNAL_ERROR", `Object ${hash} is not a tree`);
+  if (obj.type !== "tree") throw new ArtifactsError("INTERNAL_ERROR", "A stored git object is corrupt.");
   return parseTree(obj.data);
 }
 
@@ -215,7 +215,8 @@ export async function readBlob(gitDir: string, hash: string): Promise<Buffer | n
 
 /** Resolve `path` at `ref` to blob bytes; null for a missing ref, missing path, or a directory. */
 export async function readFileAt(gitDir: string, ref: string, path: string): Promise<Buffer | null> {
-  if (!ref || !path) throw new ArtifactsError("INVALID_INPUT", "ref and path must be non-empty");
+  if (!ref) throw new ArtifactsError("INVALID_INPUT", "Invalid input: expected string, received undefined", "/ref");
+  if (!path) throw new ArtifactsError("INVALID_INPUT", "Invalid input: expected string, received undefined", "/path");
   const commit = await resolveCommit(gitDir, ref);
   if (!commit) return null;
   const clean = path.replace(/^\/+/, "");
@@ -249,8 +250,8 @@ export async function log(gitDir: string, opts: LogOptions = {}): Promise<Commit
   const ref = opts.ref ?? "HEAD";
   const limit = Math.min(opts.limit ?? LOG_DEFAULT_LIMIT, LOG_MAX_LIMIT);
   const offset = opts.offset ?? 0;
-  if (!Number.isInteger(limit) || limit < 1) throw new ArtifactsError("INVALID_INPUT", "limit must be a positive integer");
-  if (!Number.isInteger(offset) || offset < 0) throw new ArtifactsError("INVALID_INPUT", "offset must be a non-negative integer");
+  if (!Number.isInteger(limit) || limit < 1) throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >0", "/limit");
+  if (!Number.isInteger(offset) || offset < 0) throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >=0", "/offset");
 
   const start = await resolveCommit(gitDir, ref);
   if (!start) return [];

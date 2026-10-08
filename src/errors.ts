@@ -21,7 +21,7 @@ const CODES: Record<ArtifactsErrorCode, { numeric: number; status: number }> = {
   INVALID_REPO_NAME: { numeric: 10101, status: 400 },
   INVALID_TTL: { numeric: 10103, status: 400 },
   INVALID_URL: { numeric: 10104, status: 400 },
-  REMOTE_AUTH_REQUIRED: { numeric: 10106, status: 400 },
+  REMOTE_AUTH_REQUIRED: { numeric: 10106, status: 422 },
   NOT_FOUND: { numeric: 10200, status: 404 },
   ALREADY_EXISTS: { numeric: 10201, status: 409 },
   CREATE_IN_PROGRESS: { numeric: 10301, status: 409 },
@@ -36,11 +36,30 @@ export class ArtifactsError extends Error {
   override readonly name = "ArtifactsError" as const;
   readonly code: ArtifactsErrorCode;
   readonly numericCode: number;
+  // Private so it stays off the own keys, which match the real error: name, code, numericCode.
+  #pointer: string | undefined;
 
-  constructor(code: ArtifactsErrorCode, message: string) {
+  /** `pointer` is the JSON pointer of the offending field, sent as REST `source.pointer`. */
+  constructor(code: ArtifactsErrorCode, message: string, pointer?: string) {
     super(message);
     this.code = code;
     this.numericCode = CODES[code].numeric;
+    this.#pointer = pointer;
+  }
+
+  get pointer(): string | undefined {
+    return this.#pointer;
+  }
+
+  /** The REST `errors[]` entry, shaped like the live service's. */
+  toApiError(): { code: number; message: string; documentation_url: string; source?: { pointer: string } } {
+    const out: { code: number; message: string; documentation_url: string; source?: { pointer: string } } = {
+      code: this.numericCode,
+      message: this.message,
+      documentation_url: `https://developers.cloudflare.com/artifacts/api/errors#${this.numericCode}`,
+    };
+    if (this.#pointer) out.source = { pointer: this.#pointer };
+    return out;
   }
 
   /** HTTP status for REST responses. A getter, so own keys match the real error: name, code, numericCode. */
