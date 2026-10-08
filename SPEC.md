@@ -118,10 +118,16 @@ Checked by hand against git 2.55 (2026-10-08); unverified against the live servi
 | `fetched` / `cloned` events | Emitted only when a pack is actually sent; a fetch that finds nothing new emits nothing |
 | Branch deletion, force push | Allowed, including deleting the default branch (`receive.denyDeleteCurrent=false`) |
 
-## Events
+## Events and event subscriptions
 
-Shape from [docs] Event subscriptions: `cf.artifacts.repo.{created,deleted,forked,imported,pushed,cloned,fetched,token.created,token.revoked}`
-with `{type, source, payload, metadata}`.
+| Rule | Source |
+|---|---|
+| Types `cf.artifacts.repo.{created,deleted,forked,imported,pushed,cloned,fetched,token.created,token.revoked}`; payloads as documented | [docs], live 2026-10-08 |
+| Field order `type, source{namespace, repoName, type}, metadata, payload` | live 2026-10-08 |
+| A subscription sends one source's events to one queue. `artifacts` takes `repo.created`, `repo.deleted`, `repo.forked`, `repo.imported`; `artifacts.repo` takes `pushed`, `cloned`, `fetched`, `token.created`, `token.revoked` and needs `source.namespace` and `source.repo_name` | [docs], live 2026-10-08 (REST; wrangler 4.137 has no repo options) |
+| A queue message's body is the event, with `metadata.eventSubscriptionId` set to the subscription's id | live 2026-10-08 |
+| Delivery within about 5 s; unacked messages come back after the visibility timeout with `attempts` + 1 | live 2026-10-08 (not emulated: the local Queue handles retries) |
+| `repo.forked` was **not** delivered within 60 s of a fork, while the other events were. The emulator still emits it | live 2026-10-08 |
 
 ## Limits
 

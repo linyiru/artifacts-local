@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--atomic` and `-o` pushes.
 - isomorphic-git is tested against the emulator, from Node and inside
   workerd (the docs' Worker example), and recorded against the live service.
+- Event subscriptions: `--subscribe <queue>:artifacts` and
+  `--subscribe <queue>:artifacts.repo:<namespace>/<repo>`, or
+  `/__local/queues/<queue>/subscriptions`. Under `wrangler dev` the shim feeds
+  each event into a local Queue (`artifacts-events`), so an app's `queue()`
+  consumer runs as behind a real subscription. Message bodies, field order,
+  and subscription ids match what the live service delivered.
 
 ### Changed
 

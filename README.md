@@ -115,6 +115,29 @@ const { remote, token } = await artifacts.create("app");
 // git -c http.extraHeader="Authorization: Bearer $token" push $remote main
 ```
 
+## Events
+
+Subscribe a queue to events when you start the emulator, as an event subscription does in
+production:
+
+```sh
+npx artifacts-local serve \
+  --subscribe artifacts-events:artifacts \                        # repo.created, .forked, .deleted, .imported
+  --subscribe artifacts-events:artifacts.repo:default/app          # pushed, cloned, fetched, token.*
+```
+
+Under `wrangler dev` the shim moves those events into a local Queue named `artifacts-events`, so
+your Worker's `queue()` handler receives them unchanged. Add the consumer to your local
+environment:
+
+```jsonc
+"env": { "local": { "queues": { "consumers": [{ "queue": "artifacts-events" }] } } }
+```
+
+Delivery starts with the first `env.ARTIFACTS` call. Elsewhere, read a queue's feed directly
+(`GET /__local/queues/<queue>/messages?after=<n>`) or manage subscriptions over HTTP
+(`/__local/queues/<queue>/subscriptions`). `--webhook <url>` still POSTs every event.
+
 ## REST and Git
 
 ```sh
