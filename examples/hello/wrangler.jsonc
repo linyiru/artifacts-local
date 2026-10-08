@@ -1,0 +1,16 @@
+{
+  "name": "artifacts-hello",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  // Production: the real binding.
+  "artifacts": [{ "binding": "ARTIFACTS", "namespace": "default" }],
+  "env": {
+    // `wrangler dev -e local -c wrangler.jsonc -c ../../worker/wrangler.jsonc`
+    // swaps the binding for the artifacts-local shim; the app code does not change.
+    "local": {
+      "services": [
+        { "binding": "ARTIFACTS", "service": "artifacts-local-shim", "entrypoint": "ArtifactsLocal", "props": { "namespace": "default" } }
+      ]
+    }
+  }
+}
