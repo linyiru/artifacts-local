@@ -366,20 +366,20 @@ async function namespaceCall(store, ns, method, args) {
 	}
 	throw new ArtifactsError("INVALID_INPUT", `Unknown binding method: ${method}`);
 }
+const ok = (result) => ({
+	ok: true,
+	result
+});
+const blob = (data, type) => ({
+	ok: true,
+	blob: data ? {
+		base64: data.toString("base64"),
+		type
+	} : null
+});
 async function repoCall(store, ns, repo, method, args) {
 	const meta = await store.getReadyRepo(ns, repo);
 	const gitDir = store.gitDir(ns, repo);
-	const ok = (result) => ({
-		ok: true,
-		result
-	});
-	const blob = (data, type) => ({
-		ok: true,
-		blob: data ? {
-			base64: data.toString("base64"),
-			type
-		} : null
-	});
 	switch (method) {
 		case "info": return ok(info(store, meta));
 		case "createToken": {
@@ -707,7 +707,7 @@ var Store = class {
 		const offset = decodeCursor(opts.cursor);
 		let names = [];
 		try {
-			names = (await readdir(this.dataDir)).sort();
+			names = (await readdir(this.dataDir)).toSorted();
 		} catch {}
 		const all = [];
 		for (const n of names) {
@@ -1016,7 +1016,7 @@ var Store = class {
 		const target = assertRepoName(repoName);
 		const url = params.url;
 		if (typeof url !== "string" || !url) throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
-		if (!this.allowInsecureImport && !/^https:\/\//.test(url)) throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
+		if (!this.allowInsecureImport && !url.startsWith("https://")) throw new ArtifactsError("INVALID_INPUT", "Must be an HTTPS URL", "/url");
 		if (params.depth !== void 0 && (!Number.isInteger(params.depth) || params.depth < 1)) throw new ArtifactsError("INVALID_INPUT", "Too small: expected number to be >0", "/depth");
 		if (params.branch !== void 0 && (typeof params.branch !== "string" || !params.branch || params.branch.startsWith("-"))) throw new ArtifactsError("INVALID_INPUT", "Invalid branch", "/branch");
 		const dir = await this.reserve(ns, target);
@@ -1260,7 +1260,7 @@ async function refSnapshot(gitDir) {
 async function pushPayloads(gitDir, before, after) {
 	const refs = /* @__PURE__ */ new Set([...before.keys(), ...after.keys()]);
 	const payloads = [];
-	for (const ref of [...refs].sort()) {
+	for (const ref of [...refs].toSorted()) {
 		const b = before.get(ref) ?? ZERO;
 		const a = after.get(ref) ?? ZERO;
 		if (a === b) continue;
