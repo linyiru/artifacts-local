@@ -140,6 +140,25 @@ Delivery starts with the first `env.ARTIFACTS` call. Elsewhere, read a queue's f
 (`GET /__local/queues/<queue>/messages?after=<n>`) or manage subscriptions over HTTP
 (`/__local/queues/<queue>/subscriptions`). `--webhook <url>` still POSTs every event.
 
+## Metrics and cost
+
+The emulator records each operation the way Cloudflare's `artifactsEventsAdaptiveGroups` metrics
+dataset does (event types as the live service records them, which is more than the docs list), and
+estimates what it would cost:
+
+```sh
+curl -s 'http://127.0.0.1:8788/__local/metrics?groupBy=repository,eventType&eventKind=action' | jq
+curl -s 'http://127.0.0.1:8788/__local/usage' | jq '.recorded, .estimate'
+# Project a volume: 1,000 agents × 50 operations a day for 30 days, 20 GB stored
+curl -s 'http://127.0.0.1:8788/__local/usage?operations=1500000&storageGb=20' | jq .estimate.usd
+```
+
+`/__local/metrics` takes the dataset's filters (`eventKind`, `eventType`, `repository`,
+`repositoryNamespace`, `repositoryName`, `datetime_geq`, `datetime_leq`), `groupBy` over its
+dimensions, and `limit`. Prices are Workers Paid list prices: 10,000 operations and 1 GB included
+a month, then $0.15 per 1,000 operations and $0.50 per GB-month. Which operations Cloudflare bills
+is not documented beyond create, push, pull, and clone, so the estimate counts all of them.
+
 ## REST and Git
 
 ```sh

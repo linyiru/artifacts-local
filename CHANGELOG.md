@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each event into a local Queue (`artifacts-events`), so an app's `queue()`
   consumer runs as behind a real subscription. Message bodies, field order,
   and subscription ids match what the live service delivered.
+- Metrics: every REST, git, and binding operation is recorded with the event
+  types the live service uses; `/__local/metrics` groups them like
+  `artifactsEventsAdaptiveGroups`, and `/__local/usage` estimates the monthly
+  cost of recorded or projected volumes at list prices.
 
 ### Changed
 

@@ -129,6 +129,18 @@ Checked by hand against git 2.55 (2026-10-08); unverified against the live servi
 | Delivery within about 5 s; unacked messages come back after the visibility timeout with `attempts` + 1 | live 2026-10-08 (not emulated: the local Queue handles retries) |
 | `repo.forked` was **not** delivered within 60 s of a fork, while the other events were. The emulator still emits it | live 2026-10-08 |
 
+## Metrics
+
+`artifactsEventsAdaptiveGroups` as the live service filled it on 2026-10-08 (GraphQL Analytics):
+
+| Rule | Source |
+|---|---|
+| Event types: `create` (also import), `fork`, `delete`, `push`, `pull` (clone or fetch that sends a pack), `read` (any read through REST or the binding), `token_create`, `token_revoke`, `namespace_{list,get,create,delete}` | [docs] (first five), live 2026-10-08 |
+| Failures: `clientError` with `errorMessage` `"<type> rejected"`, `serverError` with `"<type> failed"` | live 2026-10-08 |
+| Git requests refused for credentials were not recorded | live 2026-10-08 |
+| `create`, `delete`, `fork`, token, and namespace create/delete operations report a duration of 0 | live 2026-10-08 |
+| `storageLimitReached` and `rateLimited` are documented; not seen live, not emulated | [docs] |
+
 ## Limits
 
 | Limit | Source | Emulated |
