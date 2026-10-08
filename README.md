@@ -50,15 +50,27 @@ here works in production. Per the docs, `@cloudflare/workers-types`, and the liv
 
 ## Requirements
 
-Node 24+ (runs the TypeScript sources directly) and `git` with `git http-backend`.
+Node 24+ and `git` with `git http-backend`. No runtime dependencies.
+
+## Install
+
+```sh
+npm install -D github:linyiru/artifacts-local#v0.2.0   # or pnpm add -D / bun add -d
+```
+
+The package runs from compiled JavaScript in `dist/`, so plain `node` works from `node_modules`.
+`dist/` is committed, so a `github:` install needs no build step.
 
 ## Run the emulator
 
 ```sh
-npm install
-npm start                      # http://127.0.0.1:8788, data in ./.artifacts-local
-node src/cli.ts serve --help   # port, data dir, webhook, --async-delay, --allow-insecure-import, …
+npx artifacts-local serve          # http://127.0.0.1:8788, data in ./.artifacts-local
+npx artifacts-local serve --help   # port, data dir, webhook, --async-delay, --allow-insecure-import, …
 ```
+
+In a clone of this repo, `npm start` runs the TypeScript sources directly (Node 24 strips types
+outside `node_modules`). After changing `src/`, run `npm run build` and commit `dist/`; CI fails
+when `dist/` is stale.
 
 ## Use it from a Worker under `wrangler dev`
 
@@ -80,8 +92,8 @@ Keep the real binding for production, and add a `local` environment that swaps i
 ```
 
 ```sh
-npm start --prefix artifacts-local &
-wrangler dev -e local -c wrangler.jsonc -c artifacts-local/worker/wrangler.jsonc
+npx artifacts-local serve &
+wrangler dev -e local -c wrangler.jsonc -c node_modules/artifacts-local/worker/wrangler.jsonc
 ```
 
 Your code stays the same: `using repo = await env.ARTIFACTS.get("app")`, `repo.readFile(...)`, and so
@@ -93,9 +105,7 @@ MIME type. Wrangler warns that `artifacts` is not set on `env.local`; that is in
 ## Use it from Node or tests
 
 ```ts
-import { startServer } from "artifacts-local/src/server.ts";
-import { handleBinding } from "artifacts-local/src/binding-rpc.ts";
-import { createArtifactsBinding } from "artifacts-local/src/client.ts";
+import { startServer, handleBinding, createArtifactsBinding } from "artifacts-local";
 
 const srv = await startServer({ dataDir: "/tmp/art" }, [handleBinding]);
 const artifacts = createArtifactsBinding({ url: srv.url, namespace: "default" }); // typed like env.ARTIFACTS
@@ -120,6 +130,7 @@ Any bearer token works on REST unless you pass `--api-token`. Any account ID wor
 ```sh
 npm test               # unit + integration, including a run inside workerd (Miniflare)
 npm run test:coverage  # thresholds: 90% lines/functions/statements, 85% branches
+npm run build          # dist/: bundled JS and declarations
 npm run test:contract  # behaviour the emulator must share with the real service
 npm run e2e            # real `wrangler dev` + example app + git push
 ```

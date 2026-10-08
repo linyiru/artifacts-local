@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A package entry point: `import { startServer, createArtifactsBinding } from
+  "artifacts-local"`, and `artifacts-local/client` for the binding client
+  alone, with type declarations.
+
+### Changed
+
+- The package ships only what it needs at runtime (`dist`, `src` for the
+  wrangler shim, `hooks`, `worker`) instead of the whole repository.
+
+### Fixed
+
+- The CLI runs with plain `node` when installed as a dependency. Node does
+  not strip types under `node_modules`, so the `bin` and the package entry
+  now point at compiled JavaScript in `dist/` (#1).
+
 ## [0.2.0] - 2026-10-08
 
 Matches the live service, checked against it on 2026-10-08. Where the live
