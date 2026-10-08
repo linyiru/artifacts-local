@@ -172,13 +172,13 @@ describe("repository capability", () => {
     await rejectsWith(repo.revokeToken(""), "INVALID_INPUT");
   });
 
-  it("fork defaults to the default branch only and is listed with its source", async () => {
+  it("fork copies every branch and is listed with its source", async () => {
     using repo = await artifacts.get("content");
     const f = (await repo.fork("content-fork", { description: "Fork for testing" }));
     expect(Object.keys(f).sort()).toEqual(["defaultBranch", "description", "id", "name", "remote", "token"]);
     using forked = await artifacts.get("content-fork");
     expect(await forked.info()).toMatchObject({ source: "artifacts:default/content", description: "Fork for testing" });
-    expect(await forked.log({ ref: "side" })).toEqual([]);
+    expect((await forked.log({ ref: "side" })).length).toBe(2);
 
     await repo.fork("content-fork-all", { defaultBranchOnly: false });
     using all = await artifacts.get("content-fork-all");

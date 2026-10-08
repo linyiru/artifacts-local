@@ -124,7 +124,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     expect(ls.code).not.toBe(0);
   });
 
-  it("fork copies only the default branch unless asked, and records its source", async () => {
+  it("fork copies every branch, ignores default_branch_only, and records its source", async () => {
     const r = await created(repoName("fsrc"));
     await seed(r.remote, r.token, ["main", "side"]);
     const f = await api("POST", `/repos/${repoName("fsrc")}/fork`, { name: repoName("fdst") });
@@ -132,11 +132,12 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     expect(f.json.result.objects).toEqual(expect.any(Number));
     const ls = await git([...bearer(f.json.result.token), "ls-remote", f.json.result.remote]);
     expect(ls.stdout.toString()).toContain("refs/heads/main");
-    expect(ls.stdout.toString()).not.toContain("refs/heads/side");
+    expect(ls.stdout.toString()).toContain("refs/heads/side");
+    expect(f.json.result.description).toBeNull();
     const info = await api("GET", `/repos/${repoName("fdst")}`);
     expect(info.json.result.source).toBe(`artifacts:${t.namespace}/${repoName("fsrc")}`);
 
-    const all = await api("POST", `/repos/${repoName("fsrc")}/fork`, { name: repoName("fall"), default_branch_only: false });
+    const all = await api("POST", `/repos/${repoName("fsrc")}/fork`, { name: repoName("fall"), default_branch_only: true });
     const ls2 = await git([...bearer(all.json.result.token), "ls-remote", all.json.result.remote]);
     expect(ls2.stdout.toString()).toContain("refs/heads/side");
   });

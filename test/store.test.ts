@@ -177,14 +177,14 @@ describe("listRepos", () => {
 });
 
 describe("forkRepo", () => {
-  it("copies only the default branch by default", async () => {
+  it("copies every branch and does not inherit the description (live behaviour)", async () => {
     await store.createRepo("default", "base", { description: "base repo" });
     await seed("default", "base");
     const f = await store.forkRepo("default", "base", "copy");
     expect(f.meta).toMatchObject({
       name: "copy",
       source: "artifacts:default/base",
-      description: "base repo",
+      description: null,
       defaultBranch: "main",
       status: "ready",
     });
@@ -192,7 +192,7 @@ describe("forkRepo", () => {
     expect(f.token).toMatch(/^art_v2_x_/);
     const dir = store.gitDir("default", "copy");
     expect(await resolveCommit(dir, "main")).toBe(await resolveCommit(store.gitDir("default", "base"), "main"));
-    expect(await resolveCommit(dir, "dev")).toBeNull();
+    expect(await resolveCommit(dir, "dev")).not.toBeNull();
     const remotes = await gitOk(["--git-dir", dir, "remote"]);
     expect(remotes.toString()).toBe("");
   });

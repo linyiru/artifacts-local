@@ -88,7 +88,8 @@ namespace delete is `204` with no body (live).
 | Rule | Source |
 |---|---|
 | Fork is async: listed with `status: forking`; `get()` throws `FORK_IN_PROGRESS` until ready | [docs], [types] |
-| `defaultBranchOnly` defaults to **true** (binding) | [types] |
+| Fork copies every branch and tag; `default_branch_only` / `defaultBranchOnly` is accepted and ignored. (The types say the binding defaults to `true`; REST ignores the flag either way.) | live 2026-10-08 (REST); binding unverified |
+| A fork's description is `null` unless given; it is not copied from the source | live 2026-10-08 |
 | Fork `source` is `artifacts:<namespace>/<repo>`; REST fork result adds `objects` | [types], [docs] |
 | Fork to an existing name → `ALREADY_EXISTS` | [types] |
 | Import: HTTPS only (`INVALID_INPUT`), optional `branch`, `depth` | [types] |
@@ -101,7 +102,6 @@ Checked by hand against git 2.55 (2026-10-08); unverified against the live servi
 | Behaviour | Emulated as |
 |---|---|
 | Push from a shallow clone | Refused (`shallow update not allowed`), git's default `receive.shallowUpdate=false` |
-| Fork with `defaultBranchOnly` | `git clone --single-branch`: annotated tags reachable from the default branch come along |
 | `fetched` / `cloned` events | Emitted only when a pack is actually sent; a fetch that finds nothing new emits nothing |
 | Branch deletion, force push | Allowed, including deleting the default branch (`receive.denyDeleteCurrent=false`) |
 

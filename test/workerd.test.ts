@@ -183,7 +183,7 @@ describe("shim inside workerd", () => {
     expect(r.tokenTotal).toBe(2);
     expect(r.revoked).toBe(true);
     expect(r.badTtl).toMatchObject({ ok: false, error: { code: "INVALID_TTL", numericCode: 10103 } });
-    expect(r.fork).toMatchObject({ name: "wd-fork", description: "from workerd" });
+    expect(r.fork).toMatchObject({ name: "wd-fork", description: null });
     expect(r.listed).toContainEqual({ name: "wd-fork", status: "ready", hasRemote: false });
     expect(r.dup).toMatchObject({ ok: false, error: { code: "ALREADY_EXISTS", numericCode: 10201 } });
     expect(r.deleted).toBe(true);

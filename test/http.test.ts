@@ -437,7 +437,7 @@ describe("tokens routes", () => {
 });
 
 describe("fork and import routes", () => {
-  it("forks with objects in the result and default-branch-only by default", async () => {
+  it("forks every branch, with objects in the result, ignoring default_branch_only", async () => {
     const { remote, token } = await createRepo("upstream", { description: "up" });
     const w = await work();
     await w.commit("init");
@@ -445,14 +445,14 @@ describe("fork and import routes", () => {
     await w.run([...bearer(token), "push", "-q", remote, "main", "side"]);
 
     const f = await call("POST", "/namespaces/default/repos/upstream/fork", { name: "downstream" });
-    expect(f.json!.result).toMatchObject({ name: "downstream", description: "up", default_branch: "main" });
+    expect(f.json!.result).toMatchObject({ name: "downstream", description: null, default_branch: "main" });
     expect(f.json!.result.objects).toBeGreaterThan(0);
     const info = await call("GET", "/namespaces/default/repos/downstream");
     expect(info.json!.result.source).toBe("artifacts:default/upstream");
     const ls = await git([...bearer(f.json!.result.token), "ls-remote", f.json!.result.remote]);
-    expect(ls.stdout.toString()).not.toContain("refs/heads/side");
+    expect(ls.stdout.toString()).toContain("refs/heads/side");
 
-    const all = await call("POST", "/namespaces/default/repos/upstream/fork", { name: "downstream-all", default_branch_only: false });
+    const all = await call("POST", "/namespaces/default/repos/upstream/fork", { name: "downstream-all", default_branch_only: true });
     const ls2 = await git([...bearer(all.json!.result.token), "ls-remote", all.json!.result.remote]);
     expect(ls2.stdout.toString()).toContain("refs/heads/side");
 

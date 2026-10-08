@@ -479,7 +479,8 @@ export class Store {
     const dir = await this.reserve(ns, target);
     const srcDir = this.gitDir(ns, src.name);
     const meta = this.newMeta(ns, target, {
-      description: opts.description ?? src.description,
+      // Live: a fork does not inherit the source's description.
+      description: opts.description ?? null,
       defaultBranch: src.defaultBranch,
       readOnly: opts.readOnly ?? false,
       source: `artifacts:${ns}/${src.name}`,
@@ -491,8 +492,9 @@ export class Store {
         await gitOk(["init", "-q", "--bare", "-b", src.defaultBranch, tmp]);
         return;
       }
-      const branchArgs = (opts.defaultBranchOnly ?? true) ? ["--single-branch", "--branch", src.defaultBranch] : [];
-      await gitOk(["clone", "-q", "--bare", ...branchArgs, srcDir, tmp]);
+      // Live (2026-10-08): REST fork copies every branch and tag whatever default_branch_only says,
+      // so `defaultBranchOnly` is accepted and ignored. Unverified for the binding.
+      await gitOk(["clone", "-q", "--bare", srcDir, tmp]);
       await gitOk(["--git-dir", tmp, "remote", "remove", "origin"]);
     });
     const objects = await countObjects(dir);
