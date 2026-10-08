@@ -304,14 +304,14 @@ describe("repo content routes", () => {
     await w.run(["checkout", "-q", "-b", "feature/x"]);
     await w.commit("on feature", { "f.txt": "f\n" });
     await w.run([...bearer(token), "push", "-q", remote, "main", "feature/x"]);
-    tree = (await call("GET", `/namespaces/default/repos/content/commit/${head}`)).json!.result.tree_hash;
+    tree = (await call("GET", `/namespaces/default/repos/content/commit/${head}`)).json!.result.treeHash;
   });
 
   it("reads log with ref, limit, offset", async () => {
     const all = await call("GET", "/namespaces/default/repos/content/log");
     expect(all.json!.result.map((c: any) => c.message)).toEqual(["add binary", "init"]);
     expect(Object.keys(all.json!.result[0]).sort()).toEqual([
-      "author", "authored_at", "committed_at", "committer", "hash", "message", "parents", "tree_hash",
+      "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
     ]);
     const one = await call("GET", "/namespaces/default/repos/content/log?ref=feature/x&limit=1&offset=1");
     expect(one.json!.result.map((c: any) => c.message)).toEqual(["add binary"]);

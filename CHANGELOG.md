@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Issue repo tokens as `art_v2_x_<40 hex>?expires=<n>`, the format the live
   service uses (the docs still say `art_v1_`). Both formats are accepted.
+- REST `log` and `commit` return camelCase commit metadata (`treeHash`,
+  `authoredAt`, `committedAt`), as the live service does.
 
 ## [0.1.0] - 2026-10-08
 

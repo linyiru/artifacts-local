@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ArtifactsError } from "./errors.ts";
 import {
-  type CommitMetadata,
   type TreeEntry,
   log,
   readBlob,
@@ -45,7 +44,7 @@ export function sendError(res: ServerResponse, status: number, errors: ApiError[
   res.end(JSON.stringify({ result: null, success: false, errors, messages: [] }));
 }
 
-// ── wire shapes (snake_case, as in the REST docs) ──
+// ── wire shapes (snake_case for control-plane objects, as in the REST docs) ──
 
 export function repoInfo(store: Store, m: RepoMeta): Record<string, unknown> {
   return {
@@ -79,20 +78,6 @@ function namespaceInfo(n: NamespaceMeta): Record<string, unknown> {
 
 function tokenInfo(t: TokenInfo): Record<string, unknown> {
   return { id: t.id, scope: t.scope, state: t.state, created_at: t.createdAt, expires_at: t.expiresAt };
-}
-
-// Undocumented: the docs give no JSON shape for log/commit/tree. snake_case of the binding shape.
-function commitInfo(c: CommitMetadata): Record<string, unknown> {
-  return {
-    hash: c.hash,
-    tree_hash: c.treeHash,
-    message: c.message,
-    author: c.author,
-    committer: c.committer,
-    parents: c.parents,
-    authored_at: c.authoredAt,
-    committed_at: c.committedAt,
-  };
 }
 
 function treeInfo(e: TreeEntry): Record<string, unknown> {
@@ -296,12 +281,13 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
         limit: intParam(q, "limit"),
         offset: intParam(q, "offset"),
       });
-      return { status: 200, result: commits.map(commitInfo) };
+      // The live service returns the binding's camelCase commit shape here, not snake_case.
+      return { status: 200, result: commits };
     }
     case "commit": {
       if (parts.length !== 6) return noRoute();
       const c = (await readCommit(gitDir, parts[5]!)) ?? notFound("Commit not found");
-      return { status: 200, result: commitInfo(c) };
+      return { status: 200, result: c };
     }
     case "tree": {
       if (parts.length !== 6) return noRoute();

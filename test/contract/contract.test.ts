@@ -162,13 +162,12 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     expect(await raw.res.text()).toBe("# contract\n");
   });
 
-  // The docs give no JSON shape for log/commit/tree. These pin what the emulator guessed.
-  it("[guess] log entries are snake_case commit metadata", async () => {
+  it("log entries use the camelCase commit shape", async () => {
     const r = await created(repoName("logshape"));
     await seed(r.remote, r.token);
     const log = await api("GET", `/repos/${repoName("logshape")}/log`);
     expect(Object.keys(log.json.result[0]).sort()).toEqual([
-      "author", "authored_at", "committed_at", "committer", "hash", "message", "parents", "tree_hash",
+      "author", "authoredAt", "committedAt", "committer", "hash", "message", "parents", "treeHash",
     ]);
   });
 

@@ -79,7 +79,7 @@ for delete are documented; the rest are guesses.
 | `readFile` returns a MIME-typed Blob (`text/plain;charset=utf-8` or `application/octet-stream`); `null` for missing or directory | [docs] |
 | Commit message has one trailing newline removed | [types] |
 | REST `file` → `application/octet-stream`; `raw/:ref/:path` → sniffed type | [docs] REST |
-| REST JSON shape for log/commit/tree: **not documented**; emulated as snake_case of the binding shape | guess |
+| REST JSON for log/commit/tree is the binding's camelCase shape (`treeHash`, `authoredAt`) | live 2026-10-08 |
 
 ## Fork, import, delete
 
