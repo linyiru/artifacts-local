@@ -11,6 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tests, and a step in the live recording, for fetching one blob on demand
   from a blobless clone, the access pattern ArtifactFS uses.
+- The live recording captures git capability advertisements and the refused
+  `--atomic` and `-o` pushes.
+
+### Changed
+
+- Git advertises the live service's capabilities instead of git's: no
+  `atomic`, push options, `quiet`, or `report-status-v2` on receive-pack, which
+  now leads with `HEAD`; no `include-tag`, `thin-pack`, `ofs-delta`,
+  `wait-for-done`, or `server-option` on upload-pack. `git push --atomic` and
+  `git push -o` now fail, as they do against Cloudflare.
+
+### Fixed
+
+- A recording that failed midway could leave its namespace behind; cleanup
+  now retries and reports what it could not remove.
 
 ## [0.2.2] - 2026-10-08
 

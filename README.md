@@ -45,6 +45,7 @@ here works in production. Per the docs, `@cloudflare/workers-types`, and the liv
 | Public or anonymous access | Every Git route needs a repo token; REST needs a Cloudflare API token | A Worker that proxies `git-upload-pack` and adds a short-lived read token; refuse `git-receive-pack`. Mind the 2000 req / 10 s per-repo Git limit (consider `bundle-uri` with bundles in R2) |
 | Tarball or zip download | `blob`, `file`, `raw` return one file at a time | Walk the tree, stream a tar through `CompressionStream("gzip")`, cache by commit hash in R2 |
 | Write protection | `read_only: true` is stored and reported, but a write token can still push (checked live 2026-10-08) | Issue only read tokens for repos that must not change |
+| Atomic pushes and push options | Not advertised: `git push --atomic` and `git push -o` fail (checked live) | Push refs one by one and check each; pass metadata through your own API instead of push options |
 | A target namespace on fork | `fork(name)` and REST fork take no namespace (yet the docs' `repo.forked` event example shows a different target namespace) | Clone and push into a repo in the other namespace |
 | `filter` over protocol v0/v1; push over protocol v2 | Clone and fetch over v1/v2, push over v0/v1; `--filter` works over v2, and a blobless clone fetches single blobs on demand (both checked live) | Let git negotiate v2 (the default) for partial clones; [ArtifactFS](https://github.com/cloudflare/artifact-fs) mounts a repo this way |
 
