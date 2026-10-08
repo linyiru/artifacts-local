@@ -74,6 +74,7 @@ namespace delete is `204` with no body (live).
 | A push does not change `last_push_at` or `updated_at` (unchanged 15 s after a push). `--track-push-times` opts back in | live 2026-10-08 |
 | `read_only` does **not** stop a push made with a write token; it is stored and reported only | live 2026-10-08 |
 | The server is not git: it reports `agent=gitty/1.0` (emulated as `agent=artifacts-local`) | live 2026-10-08 |
+| isomorphic-git (1.42) pushes and clones with Basic auth (`x` and the token secret), from Node and from a Worker, as in the docs' example | live 2026-10-08 (Node); emulator also tested inside workerd |
 | upload-pack v0/v1 advertises, in order: `agent object-format multi_ack multi_ack_detailed no-done side-band side-band-64k shallow deepen-since deepen-not deepen-relative allow-tip-sha1-in-want allow-reachable-sha1-in-want no-progress symref`; no `include-tag`, `thin-pack`, or `ofs-delta` | [docs] (include-tag), live 2026-10-08 |
 | upload-pack v2 advertises `ls-refs=unborn`, `fetch=shallow filter sideband-all`, `object-format=sha1`, behind a `# service=` line; no `wait-for-done` or `server-option` | live 2026-10-08 |
 | receive-pack leads with `HEAD` and advertises `report-status delete-refs ofs-delta side-band-64k symref`; no `atomic`, `push-options`, `quiet`, or `report-status-v2`, so `git push --atomic` and `git push -o` fail on the client ("the receiving end does not support …") | live 2026-10-08 |

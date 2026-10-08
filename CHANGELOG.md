@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from a blobless clone, the access pattern ArtifactFS uses.
 - The live recording captures git capability advertisements and the refused
   `--atomic` and `-o` pushes.
+- isomorphic-git is tested against the emulator, from Node and inside
+  workerd (the docs' Worker example), and recorded against the live service.
 
 ### Changed
 

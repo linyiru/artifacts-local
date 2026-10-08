@@ -98,7 +98,8 @@ wrangler dev -e local -c wrangler.jsonc -c node_modules/artifacts-local/worker/w
 ```
 
 Your code stays the same: `using repo = await env.ARTIFACTS.get("app")`, `repo.readFile(...)`, and so
-on. Errors arrive as `ArtifactsError` with the real `code` and `numericCode`, and Blobs keep their
+on. Git from inside a Worker works too: the docs' [isomorphic-git example](https://developers.cloudflare.com/artifacts/examples/isomorphic-git/)
+pushes to the emulator over the Worker's `fetch`, with no compatibility flags. Errors arrive as `ArtifactsError` with the real `code` and `numericCode`, and Blobs keep their
 MIME type. Wrangler warns that `artifacts` is not set on `env.local`; that is intended.
 [examples/hello](examples/hello) is a working app, and `npm run e2e` drives it end to end with
 `git push`.
