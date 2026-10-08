@@ -30,6 +30,7 @@ jobs:
       - run: git --version && ls "$(git --exec-path)/git-http-backend"
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       - name: dist/ is up to date
         run: |
           npm run build
