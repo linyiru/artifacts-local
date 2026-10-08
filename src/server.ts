@@ -15,6 +15,7 @@ export interface ServerOptions extends RestOptions {
   webhookUrl?: string;
   asyncDelayMs?: number;
   allowInsecureImport?: boolean;
+  maxBlobBytes?: number;
   now?: () => number;
 }
 
@@ -62,6 +63,7 @@ export async function startServer(opts: ServerOptions, extra: Handler[] = []): P
     now,
     asyncDelayMs: opts.asyncDelayMs,
     allowInsecureImport: opts.allowInsecureImport,
+    maxBlobBytes: opts.maxBlobBytes,
   });
   const handlers: Handler[] = [
     handleLocal,

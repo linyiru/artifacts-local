@@ -1,5 +1,6 @@
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ArtifactsError } from "./errors.ts";
 import { EventBus } from "./events.ts";
 import { countObjects, git, gitOk } from "./git.ts";
@@ -66,7 +67,15 @@ export interface StoreOptions {
   asyncDelayMs?: number;
   /** Allow import from non-HTTPS sources (file paths, http://). Off by default, like the real service. */
   allowInsecureImport?: boolean;
+  /** Largest file a push may carry. Defaults to the documented 32 MB. */
+  maxBlobBytes?: number;
 }
+
+/** Hooks shipped with the package; see hooks/pre-receive. */
+export const HOOKS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "hooks");
+
+/** Documented per-file limit. */
+export const MAX_BLOB_BYTES = 32 * 1024 * 1024;
 
 const SORT_FIELDS: Record<RepoSort, keyof RepoMeta> = {
   created_at: "createdAt",
@@ -119,6 +128,7 @@ export class Store {
   readonly now: () => number;
   readonly asyncDelayMs: number;
   readonly allowInsecureImport: boolean;
+  readonly maxBlobBytes: number;
   /** Base for `remote` URLs, e.g. http://127.0.0.1:8788. Set by the server once it listens. */
   publicUrl = "http://127.0.0.1:8788";
 
@@ -128,6 +138,7 @@ export class Store {
     this.events = opts.events ?? new EventBus(opts.accountId ?? "local", this.now);
     this.asyncDelayMs = opts.asyncDelayMs ?? 0;
     this.allowInsecureImport = opts.allowInsecureImport ?? false;
+    this.maxBlobBytes = opts.maxBlobBytes ?? MAX_BLOB_BYTES;
   }
 
   private iso(): string {

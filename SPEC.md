@@ -97,7 +97,10 @@ for delete are documented; the rest are guesses.
 Shape from [docs] Event subscriptions: `cf.artifacts.repo.{created,deleted,forked,imported,pushed,cloned,fetched,token.created,token.revoked}`
 with `{type, source, payload, metadata}`.
 
-## Limits (not enforced unless noted)
+## Limits
 
-Max file 32 MB, max repo 1 GB, 2000 req / 10 s per namespace. Emulated:
-none of these yet.
+| Limit | Source | Emulated |
+|---|---|---|
+| Max file/blob 32 MB | [docs] Limits | Yes: `hooks/pre-receive` refuses the push; refs stay unchanged. The real error text is undocumented (guess). Configurable with `maxBlobBytes`. |
+| Max repo 1 GB, account 1 TB | [docs] Limits | No |
+| 2000 req / 10 s per namespace (control plane) and per repo (git) | [docs] Limits | No |

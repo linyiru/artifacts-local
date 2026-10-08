@@ -5,7 +5,7 @@ import { gunzipSync } from "node:zlib";
 import { ArtifactsError } from "./errors.ts";
 import { ISOLATED_GIT_ENV, git, readObjects, parseCommit } from "./git.ts";
 import { isValidNamespaceName, isValidRepoName } from "./names.ts";
-import type { Store } from "./store.ts";
+import { HOOKS_DIR, type Store } from "./store.ts";
 import type { Scope } from "./tokens.ts";
 
 const ZERO = "0".repeat(40);
@@ -183,6 +183,11 @@ function runBackend(
     CONTENT_TYPE: req.headers["content-type"] ?? "",
     REMOTE_USER: "artifacts",
     REMOTE_ADDR: req.socket.remoteAddress ?? "127.0.0.1",
+    ARTIFACTS_MAX_BLOB_BYTES: String(store.maxBlobBytes),
+    // Point at the packaged hooks per request rather than writing a path into each repo's config.
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "core.hooksPath",
+    GIT_CONFIG_VALUE_0: HOOKS_DIR,
   };
   if (req.headers["content-encoding"]) env.HTTP_CONTENT_ENCODING = String(req.headers["content-encoding"]);
   // Artifacts supports protocol v2 for upload-pack only; receive-pack always speaks v0/v1.

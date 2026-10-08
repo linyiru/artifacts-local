@@ -1,0 +1,22 @@
+#!/bin/sh
+# Reject pushes that carry a file larger than the Artifacts per-file limit (32 MB).
+# ARTIFACTS_MAX_BLOB_BYTES is set by artifacts-local for each push.
+max=${ARTIFACTS_MAX_BLOB_BYTES:-33554432}
+zero=0000000000000000000000000000000000000000
+while read -r old new ref; do
+  [ "$new" = "$zero" ] && continue
+  if [ "$old" = "$zero" ]; then
+    objects=$(git rev-list --objects "$new" --not --all)
+  else
+    objects=$(git rev-list --objects "$old..$new")
+  fi
+  big=$(printf '%s\n' "$objects" |
+    git cat-file --batch-check='%(objecttype) %(objectsize) %(objectname) %(rest)' |
+    awk -v max="$max" '$1 == "blob" && $2 > max { print $3 " " $2 " " $4; exit }')
+  if [ -n "$big" ]; then
+    set -- $big
+    echo "error: $3 ($2 bytes) exceeds the Artifacts limit of $max bytes per file" >&2
+    exit 1
+  fi
+done
+exit 0
