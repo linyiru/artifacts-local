@@ -7,7 +7,7 @@ import { tempDir } from "../helpers.ts";
 //   ARTIFACTS_LIVE=1 CLOUDFLARE_ACCOUNT_ID=... ARTIFACTS_API_TOKEN=... npm run test:contract
 //
 // The token needs Account > Artifacts > Edit. Live runs use a fresh namespace per run and
-// delete every repo they create.
+// delete every repo they create, then the namespace.
 
 export interface Target {
   name: "local" | "live";
@@ -39,6 +39,7 @@ export async function openTarget(): Promise<Target> {
         for (const r of body.result ?? []) {
           await fetch(`${base}/repos/${r.name}`, { method: "DELETE", headers });
         }
+        await fetch(base, { method: "DELETE", headers });
       },
     };
   }
