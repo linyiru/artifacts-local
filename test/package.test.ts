@@ -126,6 +126,22 @@ void info;
     expect("stdout" in r ? r.stdout : "").toBe("");
   });
 
+  it("lets a bundler build the wrangler shim from node_modules, as wrangler does", async () => {
+    const { build } = await import("esbuild");
+    const out = await build({
+      entryPoints: [join(pkg, "worker/shim.ts")],
+      bundle: true,
+      format: "esm",
+      platform: "neutral",
+      external: ["cloudflare:workers"],
+      write: false,
+      logLevel: "silent",
+    });
+    const code = out.outputFiles[0]!.text;
+    expect(code).toMatch(/ArtifactsLocal = class extends WorkerEntrypoint|class ArtifactsLocal extends WorkerEntrypoint/);
+    expect(code).toContain("/__local/binding/");
+  });
+
   it("ships runtime files only", async () => {
     const { stdout } = await run("npm", ["pack", "--dry-run", "--json"], { cwd: ROOT });
     const files = (JSON.parse(stdout) as { files: { path: string }[] }[])[0]!.files.map((f) => f.path);
