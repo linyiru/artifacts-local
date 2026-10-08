@@ -7,7 +7,6 @@ import {
   readCommit,
   readFileAt,
   readTree,
-  resolveCommit,
   sniffContentType,
 } from "./git.ts";
 import type { NamespaceMeta, RepoMeta, RepoSort, Store } from "./store.ts";
@@ -159,15 +158,6 @@ function notFound(message: string): never {
 }
 
 const TOKEN_STATES = new Set(["active", "expired", "revoked", "all"]);
-
-/** `raw/:ref/:path` where the ref may itself contain slashes: take the longest prefix that resolves. */
-async function splitRefPath(gitDir: string, rest: string[]): Promise<{ ref: string; path: string } | null> {
-  for (let i = rest.length - 1; i >= 1; i--) {
-    const ref = rest.slice(0, i).join("/");
-    if (await resolveCommit(gitDir, ref)) return { ref, path: rest.slice(i).join("/") };
-  }
-  return null;
-}
 
 // ── router ──
 
@@ -332,9 +322,12 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
       return { status: 200, bytes: { data: f, type: "application/octet-stream" } };
     }
     case "raw": {
-      const split = (await splitRefPath(gitDir, parts.slice(5))) ?? notFound("File not found");
-      const f = (await readFileAt(gitDir, split.ref, split.path)) ?? notFound("File not found");
-      return { status: 200, bytes: { data: f, type: sniffContentType(f) } };
+      // Live: the first segment is the ref, so refs containing "/" (feature/x) cannot be read here.
+      const [ref, ...rest] = parts.slice(5);
+      if (!ref || rest.length === 0) notFound("File not found");
+      const f = (await readFileAt(gitDir, ref, rest.join("/"))) ?? notFound("File not found");
+      // REST spells the text type with a space; the binding's Blob type has none.
+      return { status: 200, bytes: { data: f, type: sniffContentType(f).replace(";charset", "; charset") } };
     }
     case "tokens": {
       if (parts.length !== 5) return noRoute();

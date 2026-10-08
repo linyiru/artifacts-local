@@ -383,14 +383,15 @@ describe("repo content routes", () => {
     expect((await call("GET", `/namespaces/default/repos/content/blob/${"0".repeat(40)}`)).status).toBe(404);
   });
 
-  it("returns raw files with a sniffed type and slash-containing refs", async () => {
+  it("returns raw files with a sniffed type; refs containing a slash are not addressable", async () => {
     const txt = await call("GET", "/namespaces/default/repos/content/raw/main/README.md");
-    expect(txt.type).toBe("text/plain;charset=utf-8");
+    expect(txt.type).toBe("text/plain; charset=utf-8");
     const bin = await call("GET", "/namespaces/default/repos/content/raw/main/bin.dat");
     expect(bin.type).toBe("application/octet-stream");
     expect(Buffer.from(await bin.res.arrayBuffer())).toEqual(Buffer.from([0, 1, 2, 255]));
     const feat = await call("GET", "/namespaces/default/repos/content/raw/feature/x/f.txt");
-    expect(await feat.res.text()).toBe("f\n");
+    expect(feat.status).toBe(404);
+    expect((await call("GET", "/namespaces/default/repos/content/raw/main")).status).toBe(404);
     expect((await call("GET", "/namespaces/default/repos/content/raw/nope/x")).status).toBe(404);
     expect((await call("GET", "/namespaces/default/repos/content/raw/main/none.txt")).status).toBe(404);
   });

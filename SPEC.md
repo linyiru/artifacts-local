@@ -80,7 +80,8 @@ namespace delete is `204` with no body (live).
 | `readBlob` returns an untyped Blob; `null` if not a blob | [types] |
 | `readFile` returns a MIME-typed Blob (`text/plain;charset=utf-8` or `application/octet-stream`); `null` for missing or directory | [docs] |
 | Commit message has one trailing newline removed | [types] |
-| REST `file` → `application/octet-stream`; `raw/:ref/:path` → sniffed type | [docs] REST |
+| REST `file` → `application/octet-stream`; `raw/:ref/:path` → `text/plain; charset=utf-8` (with a space) or `application/octet-stream` | [docs], live 2026-10-08 |
+| `raw/:ref/:path` takes the first segment as the ref, so a ref containing `/` cannot be read through it | live 2026-10-08 |
 | REST JSON for log/commit/tree is the binding's camelCase shape (`treeHash`, `authoredAt`) | live 2026-10-08 |
 
 ## Fork, import, delete

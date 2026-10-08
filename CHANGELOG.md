@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer inherit the source's description, matching the live REST API.
 - Imported repos record `source` as `git:<url>.git`, and a URL that is not a
   git remote fails with `INVALID_URL`, as live.
+- REST `raw/:ref/:path` takes the first path segment as the ref and spells
+  the text type `text/plain; charset=utf-8`, as live.
 
 ## [0.1.0] - 2026-10-08
 
