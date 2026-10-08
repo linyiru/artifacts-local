@@ -1,0 +1,22 @@
+{
+  // The artifacts-local shim as its own Worker. Run it next to your app with
+  //   wrangler dev -e local -c <your app>/wrangler.jsonc -c node_modules/artifacts-local/worker/wrangler.jsonc
+  "name": "artifacts-local-shim",
+  "main": "shim.ts",
+  "compatibility_date": "2026-09-01",
+  "vars": {
+    "ARTIFACTS_LOCAL_URL": "http://127.0.0.1:8788",
+    "ARTIFACTS_NAMESPACE": "default"
+  },
+  "env": {
+    // Wrangler appends the environment to a Worker's name (artifacts-local-shim-local), which
+    // would break the app's service binding. Pin the name for the `local` environment.
+    "local": {
+      "name": "artifacts-local-shim",
+      "vars": {
+        "ARTIFACTS_LOCAL_URL": "http://127.0.0.1:8788",
+        "ARTIFACTS_NAMESPACE": "default"
+      }
+    }
+  }
+}
