@@ -1,0 +1,2157 @@
+{
+  "recordedAt": "2026-10-08",
+  "exchanges": [
+    {
+      "kind": "http",
+      "label": "ns create",
+      "method": "POST",
+      "path": "/namespaces",
+      "request": {
+        "namespace": "<ns>"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "namespace": "<ns>",
+          "jurisdiction": "unrestricted",
+          "repo_count": 0,
+          "created_at": "<time>",
+          "updated_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "ns create dup",
+      "method": "POST",
+      "path": "/namespaces",
+      "request": {
+        "namespace": "<ns>"
+      },
+      "status": 409,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10201,
+            "message": "Namespace already exists",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10201"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "ns get",
+      "method": "GET",
+      "path": "/namespaces/<ns>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "namespace": "<ns>",
+          "jurisdiction": "unrestricted",
+          "repo_count": 0,
+          "created_at": "<time>",
+          "updated_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "ns get missing",
+      "method": "GET",
+      "path": "/namespaces/<ns>-missing",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Namespace not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "ns create bad name",
+      "method": "POST",
+      "path": "/namespaces",
+      "request": {
+        "namespace": "-x"
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Invalid namespace name",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/namespace"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo create",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {
+        "name": "base",
+        "description": "probe",
+        "default_branch": "main"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "base",
+          "description": "probe",
+          "default_branch": "main",
+          "remote": "<host>/git/<ns>/base.git",
+          "token": "<token>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo create dup",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {
+        "name": "base"
+      },
+      "status": 409,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10201,
+            "message": "repo already exists: base",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10201"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo create bad name",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {
+        "name": "-bad"
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10101,
+            "message": "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10101",
+            "source": {
+              "pointer": "/name"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo create no name",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {},
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10101,
+            "message": "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10101",
+            "source": {
+              "pointer": "/name"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo create read_only",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {
+        "name": "frozen",
+        "read_only": true
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "frozen",
+          "description": null,
+          "default_branch": "main",
+          "remote": "<host>/git/<ns>/frozen.git",
+          "token": "<token>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo create trunk",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {
+        "name": "trunky",
+        "default_branch": "trunk"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "trunky",
+          "description": null,
+          "default_branch": "trunk",
+          "remote": "<host>/git/<ns>/trunky.git",
+          "token": "<token>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo get",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "base",
+          "description": "probe",
+          "default_branch": "main",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "last_push_at": null,
+          "source": null,
+          "read_only": false,
+          "remote": "<host>/git/<ns>/base.git"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "repo get missing",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/missing",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Repository not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "git",
+      "label": "init",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "add",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "commit first",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "add",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "commit second",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "branch side",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "branch feature/x",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "tag",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "push without auth",
+      "code": 128,
+      "remote": [
+        "fatal: could not read Username for '<host>': terminal prompts disabled"
+      ],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "push",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "ls-remote basic",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\tHEAD\n<sha>\trefs/heads/feature/x\n<sha>\trefs/heads/main\n<sha>\trefs/heads/side\n<sha>\trefs/tags/v1\n<sha>\trefs/tags/v1^{}\n"
+    },
+    {
+      "kind": "git",
+      "label": "ls-remote basic empty user",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\tHEAD\n<sha>\trefs/heads/feature/x\n<sha>\trefs/heads/main\n<sha>\trefs/heads/side\n<sha>\trefs/tags/v1\n<sha>\trefs/tags/v1^{}\n"
+    },
+    {
+      "kind": "git",
+      "label": "ls-remote bearer secret",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\tHEAD\n<sha>\trefs/heads/feature/x\n<sha>\trefs/heads/main\n<sha>\trefs/heads/side\n<sha>\trefs/tags/v1\n<sha>\trefs/tags/v1^{}\n"
+    },
+    {
+      "kind": "http",
+      "label": "repo get after push",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "base",
+          "description": "probe",
+          "default_branch": "main",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "last_push_at": null,
+          "source": null,
+          "read_only": false,
+          "remote": "<host>/git/<ns>/base.git"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "log",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/log?ref=main&limit=10",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "second\n\nbody\n",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [
+              "<sha>"
+            ],
+            "authoredAt": 0,
+            "committedAt": 0
+          },
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "first",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [],
+            "authoredAt": 0,
+            "committedAt": 0
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "log default",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/log",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "second\n\nbody\n",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [
+              "<sha>"
+            ],
+            "authoredAt": 0,
+            "committedAt": 0
+          },
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "first",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [],
+            "authoredAt": 0,
+            "committedAt": 0
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "log offset",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/log?limit=1&offset=1",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "first",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [],
+            "authoredAt": 0,
+            "committedAt": 0
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "log unknown ref",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/log?ref=nope",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [],
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "log limit=0",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/log?limit=0",
+      "request": null,
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Too small: expected number to be >0",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/limit"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "log limit=5000",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/log?limit=5000",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "second\n\nbody\n",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [
+              "<sha>"
+            ],
+            "authoredAt": 0,
+            "committedAt": 0
+          },
+          {
+            "hash": "<sha>",
+            "treeHash": "<sha>",
+            "message": "first",
+            "author": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "committer": {
+              "name": "probe",
+              "email": "probe@example.com"
+            },
+            "parents": [],
+            "authoredAt": 0,
+            "committedAt": 0
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "commit",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/commit/<sha>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "hash": "<sha>",
+          "treeHash": "<sha>",
+          "message": "second\n\nbody\n",
+          "author": {
+            "name": "probe",
+            "email": "probe@example.com"
+          },
+          "committer": {
+            "name": "probe",
+            "email": "probe@example.com"
+          },
+          "parents": [
+            "<sha>"
+          ],
+          "authoredAt": 0,
+          "committedAt": 0
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "commit missing",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/commit/<sha>",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Commit not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "commit bad hash",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/commit/XYZ",
+      "request": null,
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Invalid SHA-1 hash",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/hash"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "tree",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/tree/<sha>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "name": "README.md",
+            "mode": "100644",
+            "hash": "<sha>",
+            "type": "blob"
+          },
+          {
+            "name": "bin.dat",
+            "mode": "100644",
+            "hash": "<sha>",
+            "type": "blob"
+          },
+          {
+            "name": "src",
+            "mode": "40000",
+            "hash": "<sha>",
+            "type": "tree"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "tree of a commit",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/tree/<sha>",
+      "request": null,
+      "status": 500,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10400,
+            "message": "A stored git object is corrupt.",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10400"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "blob",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/blob/<sha>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/octet-stream",
+      "body": "bytes:IyBwcm9iZQo="
+    },
+    {
+      "kind": "http",
+      "label": "blob of a commit",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/blob/<sha>",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Blob not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "file",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/file?ref=main&path=README.md",
+      "request": null,
+      "status": 200,
+      "contentType": "application/octet-stream",
+      "body": "bytes:IyBwcm9iZQo="
+    },
+    {
+      "kind": "http",
+      "label": "file binary",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/file?ref=main&path=bin.dat",
+      "request": null,
+      "status": 200,
+      "contentType": "application/octet-stream",
+      "body": "bytes:AAEC/w=="
+    },
+    {
+      "kind": "http",
+      "label": "file missing",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/file?ref=main&path=nope",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "File not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "file directory",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/file?ref=main&path=src",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "File not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "file no path",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/file?ref=main",
+      "request": null,
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Invalid input: expected string, received undefined",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/path"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "raw",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/raw/main/README.md",
+      "request": null,
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "body": "# probe\n"
+    },
+    {
+      "kind": "http",
+      "label": "raw binary",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/raw/main/bin.dat",
+      "request": null,
+      "status": 200,
+      "contentType": "application/octet-stream",
+      "body": "bytes:AAEC/w=="
+    },
+    {
+      "kind": "http",
+      "label": "raw slash ref",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/raw/feature/x/src/a.txt",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "File not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "raw by tag",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/raw/v1/README.md",
+      "request": null,
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "body": "# probe\n"
+    },
+    {
+      "kind": "http",
+      "label": "token create read",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "base",
+        "scope": "read",
+        "ttl": 600
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "plaintext": "<token>",
+          "scope": "read",
+          "expires_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token create default",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "base"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "plaintext": "<token>",
+          "scope": "write",
+          "expires_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token ttl 10",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "base",
+        "ttl": 10
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10103,
+            "message": "ttl must be between 60 and 31536000 seconds",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10103",
+            "source": {
+              "pointer": "/ttl"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token ttl too big",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "base",
+        "ttl": 31536001
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10103,
+            "message": "ttl must be between 60 and 31536000 seconds",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10103",
+            "source": {
+              "pointer": "/ttl"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token missing repo",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "missing"
+      },
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Repository not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "tokens list",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/tokens",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "scope": "write",
+            "state": "active",
+            "created_at": "<time>",
+            "expires_at": "<time>"
+          },
+          {
+            "id": "<id>",
+            "scope": "read",
+            "state": "active",
+            "created_at": "<time>",
+            "expires_at": "<time>"
+          },
+          {
+            "id": "<id>",
+            "scope": "write",
+            "state": "active",
+            "created_at": "<time>",
+            "expires_at": "<time>"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "page": 1,
+          "per_page": 30,
+          "total_pages": 1,
+          "count": 3,
+          "total_count": 3
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "tokens list all per_page=1",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/base/tokens?state=all&per_page=1",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "scope": "write",
+            "state": "active",
+            "created_at": "<time>",
+            "expires_at": "<time>"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "page": 1,
+          "per_page": 1,
+          "total_pages": 3,
+          "count": 1,
+          "total_count": 3
+        }
+      }
+    },
+    {
+      "kind": "git",
+      "label": "clone with read token",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "add",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "commit",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "push with read token",
+      "code": 128,
+      "remote": [
+        "remote: Insufficient permissions",
+        "fatal: unable to access '<remote>': The requested URL returned error: 403"
+      ],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "partial clone v2",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "partial clone v2 promisor",
+      "code": 0,
+      "remote": [],
+      "stdout": "true\n"
+    },
+    {
+      "kind": "git",
+      "label": "partial clone v0",
+      "code": 0,
+      "remote": [
+        "warning: filtering not recognized by server, ignoring",
+        "warning: filtering not recognized by server, ignoring"
+      ],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "shallow clone v2",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "http",
+      "label": "token revoke",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>/tokens/<id>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token revoke again",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>/tokens/<id>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token revoke unknown",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>/tokens/<id>",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Token not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "git",
+      "label": "ls-remote with revoked token",
+      "code": 128,
+      "remote": [
+        "remote: Invalid or expired token",
+        "fatal: unable to access '<remote>': The requested URL returned error: 403"
+      ],
+      "stdout": ""
+    },
+    {
+      "kind": "http",
+      "label": "repo get frozen",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/frozen",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "frozen",
+          "description": null,
+          "default_branch": "main",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "last_push_at": null,
+          "source": null,
+          "read_only": true,
+          "remote": "<host>/git/<ns>/frozen.git"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token for frozen",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "frozen"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "plaintext": "<token>",
+          "scope": "write",
+          "expires_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "git",
+      "label": "push to read_only",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "http",
+      "label": "fork",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/base/fork",
+      "request": {
+        "name": "copy"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "copy",
+          "description": null,
+          "default_branch": "main",
+          "remote": "<host>/git/<ns>/copy.git",
+          "token": "<token>",
+          "objects": 11
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "fork default_branch_only",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/base/fork",
+      "request": {
+        "name": "copy-only",
+        "default_branch_only": true
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "copy-only",
+          "description": null,
+          "default_branch": "main",
+          "remote": "<host>/git/<ns>/copy-only.git",
+          "token": "<token>",
+          "objects": 11
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "fork dup",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/base/fork",
+      "request": {
+        "name": "copy"
+      },
+      "status": 409,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10201,
+            "message": "repo already exists: copy",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10201"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "fork bad name",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/base/fork",
+      "request": {
+        "name": "-x"
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10101,
+            "message": "Invalid repo name: must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10101",
+            "source": {
+              "pointer": "/name"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "fork missing source",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/missing/fork",
+      "request": {
+        "name": "z"
+      },
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Repository not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "get fork",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/copy-only",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "copy-only",
+          "description": null,
+          "default_branch": "main",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "last_push_at": null,
+          "source": "artifacts:<ns>/base",
+          "read_only": false,
+          "remote": "<host>/git/<ns>/copy-only.git"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token for fork",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "copy-only",
+        "scope": "read"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "plaintext": "<token>",
+          "scope": "read",
+          "expires_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "git",
+      "label": "ls-remote fork",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\tHEAD\n<sha>\trefs/heads/feature/x\n<sha>\trefs/heads/main\n<sha>\trefs/heads/side\n<sha>\trefs/tags/v1\n<sha>\trefs/tags/v1^{}\n"
+    },
+    {
+      "kind": "http",
+      "label": "list",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "name": "copy-only",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy-only.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "copy",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "trunky",
+            "description": null,
+            "default_branch": "trunk",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/trunky.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "frozen",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": true,
+            "remote": "<host>/git/<ns>/frozen.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "base",
+            "description": "probe",
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/base.git",
+            "status": "ready"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "page": 1,
+          "per_page": 50,
+          "total_pages": 1,
+          "count": 5,
+          "total_count": 5
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list limit=2",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos?limit=2",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "name": "copy-only",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy-only.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "copy",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy.git",
+            "status": "ready"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "cursor": "<cursor>",
+          "per_page": 2,
+          "count": 2
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list page 2",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos?limit=2&cursor=<cursor>",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "name": "trunky",
+            "description": null,
+            "default_branch": "trunk",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/trunky.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "frozen",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": true,
+            "remote": "<host>/git/<ns>/frozen.git",
+            "status": "ready"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "cursor": "<cursor>",
+          "per_page": 2,
+          "count": 2
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list sort=name asc",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos?sort=name&direction=asc",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "name": "base",
+            "description": "probe",
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/base.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "copy",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "copy-only",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy-only.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "frozen",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": true,
+            "remote": "<host>/git/<ns>/frozen.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "trunky",
+            "description": null,
+            "default_branch": "trunk",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/trunky.git",
+            "status": "ready"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "page": 1,
+          "per_page": 50,
+          "total_pages": 1,
+          "count": 5,
+          "total_count": 5
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list search",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos?search=cop",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [
+          {
+            "id": "<id>",
+            "name": "copy-only",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy-only.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
+            "name": "copy",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": "artifacts:<ns>/base",
+            "read_only": false,
+            "remote": "<host>/git/<ns>/copy.git",
+            "status": "ready"
+          }
+        ],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "page": 1,
+          "per_page": 50,
+          "total_pages": 1,
+          "count": 2,
+          "total_count": 2
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list limit=500",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos?limit=500",
+      "request": null,
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Too big: expected number to be <=200",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/limit"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list bad sort",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos?sort=size",
+      "request": null,
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Invalid option: expected one of \"created_at\"|\"updated_at\"|\"last_push_at\"|\"name\"",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/sort"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "list missing namespace",
+      "method": "GET",
+      "path": "/namespaces/<ns>-missing/repos",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": [],
+        "success": true,
+        "errors": [],
+        "messages": [],
+        "result_info": {
+          "page": 1,
+          "per_page": 50,
+          "total_pages": 0,
+          "count": 0,
+          "total_count": 0
+        }
+      }
+    },
+    {
+      "kind": "http",
+      "label": "import https",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/hello/import",
+      "request": {
+        "url": "https://github.com/octocat/Hello-World",
+        "depth": 1
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "hello",
+          "description": null,
+          "default_branch": "main",
+          "remote": "<host>/git/<ns>/hello.git",
+          "token": "<token>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "get imported",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/hello",
+      "request": null,
+      "status": 200,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "hello",
+          "description": null,
+          "default_branch": "main",
+          "created_at": "<time>",
+          "updated_at": "<time>",
+          "last_push_at": null,
+          "source": "git:https://github.com/octocat/Hello-World.git",
+          "read_only": false,
+          "remote": "<host>/git/<ns>/hello.git"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "token for imported",
+      "method": "POST",
+      "path": "/namespaces/<ns>/tokens",
+      "request": {
+        "repo": "hello",
+        "scope": "read"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "plaintext": "<token>",
+          "scope": "read",
+          "expires_at": "<time>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "git",
+      "label": "ls-remote imported",
+      "code": 0,
+      "remote": [],
+      "stdout": "<sha>\tHEAD\n<sha>\trefs/heads/master\n"
+    },
+    {
+      "kind": "http",
+      "label": "import not a repo",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/h3/import",
+      "request": {
+        "url": "https://example.com/"
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10104,
+            "message": "url must be an HTTPS git remote URL (e.g. https://github.com/owner/repo)",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10104",
+            "source": {
+              "pointer": "/url"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "import missing github repo",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/h4/import",
+      "request": {
+        "url": "https://github.com/octocat/definitely-not-a-repo-zz9"
+      },
+      "status": 422,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10106,
+            "message": "Repository \"https://github.com/octocat/definitely-not-a-repo-zz9.git\" requires authentication (HTTP 401). Only public repositories can be imported.",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10106",
+            "source": {
+              "pointer": "/url"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "import http",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos/h2/import",
+      "request": {
+        "url": "http://github.com/octocat/Hello-World"
+      },
+      "status": 400,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10100,
+            "message": "Must be an HTTPS URL",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10100",
+            "source": {
+              "pointer": "/url"
+            }
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "unknown route",
+      "method": "GET",
+      "path": "/namespaces/<ns>/widgets",
+      "request": null,
+      "status": 404,
+      "contentType": "text/plain; charset=UTF-8",
+      "body": "404 Not Found"
+    },
+    {
+      "kind": "http",
+      "label": "delete repo",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>/repos/copy",
+      "request": null,
+      "status": 202,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "delete repo again",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>/repos/copy",
+      "request": null,
+      "status": 202,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "delete repo never existed",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>/repos/never-was",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Repository not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "get deleted",
+      "method": "GET",
+      "path": "/namespaces/<ns>/repos/copy",
+      "request": null,
+      "status": 404,
+      "contentType": "application/json",
+      "body": {
+        "result": null,
+        "success": false,
+        "errors": [
+          {
+            "code": 10200,
+            "message": "Repository not found",
+            "documentation_url": "https://developers.cloudflare.com/artifacts/api/errors#10200"
+          }
+        ],
+        "messages": []
+      }
+    },
+    {
+      "kind": "http",
+      "label": "ns delete",
+      "method": "DELETE",
+      "path": "/namespaces/<ns>",
+      "request": null,
+      "status": 204,
+      "contentType": "",
+      "body": ""
+    }
+  ]
+}

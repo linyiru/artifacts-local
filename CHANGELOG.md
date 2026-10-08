@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `--track-push-times` (`trackPushTimes`) to update `last_push_at` on push.
+- `npm run record` records a fixed scenario against the live service into
+  `test/fixtures/live.json` (ids, hashes, times, and secrets normalised), and
+  a test replays it against the emulator step by step.
 
 ### Changed
 
