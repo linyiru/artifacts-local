@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import * as isogit from "isomorphic-git";
+import isohttp from "isomorphic-git/http/web";
+import * as fs from "node:fs";
 import { parsePkts } from "../../src/capabilities.ts";
 
 // One fixed sequence of REST calls and git commands, run against any Artifacts target.
@@ -141,6 +144,69 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     await git("tag", ["-C", w, "tag", "-a", "v1", "-m", "release"]);
     await git("push without auth", ["-C", w, "push", remote, "main"]);
     await git("push", ["-C", w, ...auth(token), "push", "-q", remote, "main", "side", "feature/x", "--tags"]);
+
+    // isomorphic-git, as in the Artifacts example: push a new repo, then clone it back.
+    const iso = await api("repo create iso", "POST", `${BASE}/repos`, { name: "iso" });
+    const isoAuth = () => ({ username: "x", password: String(iso.json.result.token).split("?expires=")[0] });
+    const isoDir = join(work, "iso");
+    async function isoStep(label: string, fn: () => Promise<unknown>) {
+      try {
+        const result = await fn();
+        out.push({ kind: "git", label, code: 0, remote: [], stdout: JSON.stringify(result ?? null) });
+      } catch (e) {
+        const err = e as { code?: string; data?: { statusCode?: number } };
+        out.push({
+          kind: "git",
+          label,
+          code: 1,
+          remote: [`${err.code ?? "Error"} ${err.data?.statusCode ?? ""}`.trim()],
+          stdout: "",
+        });
+      }
+    }
+    await isogit.init({ fs, dir: isoDir, defaultBranch: "main" });
+    fs.writeFileSync(join(isoDir, "README.md"), "# from isomorphic-git\n");
+    await isogit.add({ fs, dir: isoDir, filepath: "README.md" });
+    await isogit.commit({
+      fs,
+      dir: isoDir,
+      message: "iso",
+      author: { name: "probe", email: "probe@example.com", timestamp: 1_760_000_000, timezoneOffset: 0 },
+    });
+    await isoStep("isomorphic-git push", async () => {
+      const r = await isogit.push({
+        fs,
+        http: isohttp,
+        dir: isoDir,
+        url: iso.json.result.remote,
+        ref: "main",
+        onAuth: isoAuth,
+      });
+      return { ok: r.ok, refs: r.refs };
+    });
+    await isoStep("isomorphic-git clone", async () => {
+      const cloneDir = join(work, "iso-clone");
+      await isogit.clone({
+        fs,
+        http: isohttp,
+        dir: cloneDir,
+        url: iso.json.result.remote,
+        ref: "main",
+        singleBranch: true,
+        onAuth: isoAuth,
+      });
+      return { readme: fs.readFileSync(join(cloneDir, "README.md"), "utf8") };
+    });
+    await isoStep("isomorphic-git push without credentials", async () => {
+      await isogit.push({
+        fs,
+        http: isohttp,
+        dir: isoDir,
+        url: iso.json.result.remote,
+        ref: "main",
+        onAuth: () => ({ cancel: true }),
+      });
+    });
 
     // Capability advertisements, one pkt-line per entry, and the pushes they rule out.
     async function advertisement(label: string, service: string, proto?: string) {

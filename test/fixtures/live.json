@@ -385,6 +385,53 @@
     },
     {
       "kind": "http",
+      "label": "repo create iso",
+      "method": "POST",
+      "path": "/namespaces/<ns>/repos",
+      "request": {
+        "name": "iso"
+      },
+      "status": 201,
+      "contentType": "application/json",
+      "body": {
+        "result": {
+          "id": "<id>",
+          "name": "iso",
+          "description": null,
+          "default_branch": "main",
+          "remote": "<host>/git/<ns>/iso.git",
+          "token": "<token>"
+        },
+        "success": true,
+        "errors": [],
+        "messages": []
+      }
+    },
+    {
+      "kind": "git",
+      "label": "isomorphic-git push",
+      "code": 0,
+      "remote": [],
+      "stdout": "{\"ok\":true,\"refs\":{\"refs/heads/main\":{\"ok\":true,\"error\":\"\"}}}"
+    },
+    {
+      "kind": "git",
+      "label": "isomorphic-git clone",
+      "code": 0,
+      "remote": [],
+      "stdout": "{\"readme\":\"# from isomorphic-git\\n\"}"
+    },
+    {
+      "kind": "git",
+      "label": "isomorphic-git push without credentials",
+      "code": 1,
+      "remote": [
+        "UserCanceledError"
+      ],
+      "stdout": ""
+    },
+    {
+      "kind": "http",
       "label": "advertisement upload-pack v0",
       "method": "GET",
       "path": "<host>/git/<ns>/base.git/info/refs?service=git-upload-pack",
@@ -1665,6 +1712,19 @@
           },
           {
             "id": "<id>",
+            "name": "iso",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/iso.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
             "name": "trunky",
             "description": null,
             "default_branch": "trunk",
@@ -1710,8 +1770,8 @@
           "page": 1,
           "per_page": 50,
           "total_pages": 1,
-          "count": 5,
-          "total_count": 5
+          "count": 6,
+          "total_count": 6
         }
       }
     },
@@ -1774,6 +1834,19 @@
         "result": [
           {
             "id": "<id>",
+            "name": "iso",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/iso.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
             "name": "trunky",
             "description": null,
             "default_branch": "trunk",
@@ -1783,19 +1856,6 @@
             "source": null,
             "read_only": false,
             "remote": "<host>/git/<ns>/trunky.git",
-            "status": "ready"
-          },
-          {
-            "id": "<id>",
-            "name": "frozen",
-            "description": null,
-            "default_branch": "main",
-            "created_at": "<time>",
-            "updated_at": "<time>",
-            "last_push_at": null,
-            "source": null,
-            "read_only": true,
-            "remote": "<host>/git/<ns>/frozen.git",
             "status": "ready"
           }
         ],
@@ -1873,6 +1933,19 @@
           },
           {
             "id": "<id>",
+            "name": "iso",
+            "description": null,
+            "default_branch": "main",
+            "created_at": "<time>",
+            "updated_at": "<time>",
+            "last_push_at": null,
+            "source": null,
+            "read_only": false,
+            "remote": "<host>/git/<ns>/iso.git",
+            "status": "ready"
+          },
+          {
+            "id": "<id>",
             "name": "trunky",
             "description": null,
             "default_branch": "trunk",
@@ -1892,8 +1965,8 @@
           "page": 1,
           "per_page": 50,
           "total_pages": 1,
-          "count": 5,
-          "total_count": 5
+          "count": 6,
+          "total_count": 6
         }
       }
     },
