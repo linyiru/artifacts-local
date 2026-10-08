@@ -5,7 +5,7 @@ import { gunzipSync } from "node:zlib";
 import { ArtifactsError } from "./errors.ts";
 import { ISOLATED_GIT_ENV, git, readObjects, parseCommit } from "./git.ts";
 import { isValidNamespaceName, isValidRepoName } from "./names.ts";
-import { CAPABILITY_CONFIG, rewriteAdvertisement } from "./capabilities.ts";
+import { CAPABILITY_CONFIG, type Head, rewriteAdvertisement } from "./capabilities.ts";
 import { HOOKS_DIR, type Store } from "./store.ts";
 import type { Scope } from "./tokens.ts";
 
@@ -147,6 +147,14 @@ export async function pushPayloads(
     });
   }
   return payloads;
+}
+
+/** HEAD's branch and commit, or undefined for an empty repo. */
+async function resolveHead(gitDir: string): Promise<Head | undefined> {
+  const ref = await git(["--git-dir", gitDir, "symbolic-ref", "-q", "HEAD"]);
+  const sha = await git(["--git-dir", gitDir, "rev-parse", "-q", "--verify", "HEAD^{commit}"]);
+  if (ref.code !== 0 || sha.code !== 0) return undefined;
+  return { ref: ref.stdout.toString().trim(), sha: sha.stdout.toString().trim() };
 }
 
 /** Serialise pushes per repo so ref snapshots attribute updates to the right push. */
@@ -300,10 +308,10 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
 
   const query = url.search.slice(1);
   // Advertise what the live service advertises, not what git would (see capabilities.ts).
-  const advertise = (body: Buffer) => rewriteAdvertisement(body, route.service);
+  const advertise = (head?: Head) => (body: Buffer) => rewriteAdvertisement(body, route.service, head);
   if (route.service === "git-upload-pack") {
     if (route.path === "/info/refs") {
-      await runBackend(store, route, req, res, query, { transform: advertise });
+      await runBackend(store, route, req, res, query, { transform: advertise() });
       return true;
     }
     const body = await readBody(req);
@@ -322,7 +330,9 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
   }
 
   if (route.path === "/info/refs") {
-    await runBackend(store, route, req, res, query, { transform: advertise });
+    await runBackend(store, route, req, res, query, {
+      transform: advertise(await resolveHead(store.gitDir(route.ns, route.repo))),
+    });
     return true;
   }
   const gitDir = store.gitDir(route.ns, route.repo);

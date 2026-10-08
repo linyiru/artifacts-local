@@ -439,7 +439,10 @@ describe("git over HTTP", () => {
     expect(await adv("git-upload-pack")).toContain(
       "HEAD\0agent=artifacts-local object-format=sha1 multi_ack multi_ack_detailed no-done side-band side-band-64k shallow deepen-since deepen-not deepen-relative allow-tip-sha1-in-want allow-reachable-sha1-in-want no-progress symref=HEAD:refs/heads/main\n",
     );
-    expect(await adv("git-receive-pack")).toContain("\0report-status delete-refs ofs-delta side-band-64k\n");
+    expect(await adv("git-receive-pack")).toContain(
+      // HEAD leads, carrying the capabilities (the hash before it sits behind a pkt-line length).
+      " HEAD\0report-status delete-refs ofs-delta side-band-64k symref=HEAD:refs/heads/main\n",
+    );
     expect(await adv("git-upload-pack", "version=2")).toBe(
       "001e# service=git-upload-pack\n0000000eversion 2\n001aagent=artifacts-local\n0013ls-refs=unborn\n0026fetch=shallow filter sideband-all\n0017object-format=sha1\n0000",
     );

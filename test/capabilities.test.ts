@@ -73,6 +73,17 @@ describe("rewriteAdvertisement", () => {
     expect(out[2]).toBe(`${SHA} refs/heads/main\0report-status delete-refs ofs-delta side-band-64k\n`);
   });
 
+  it("leads receive-pack with a HEAD line carrying the capabilities and symref, as live", () => {
+    const head = { ref: "refs/heads/main", sha: "b".repeat(40) };
+    expect(lines(rewriteAdvertisement(GIT_RECEIVE, "git-receive-pack", head))).toEqual([
+      "# service=git-receive-pack\n",
+      "flush",
+      `${"b".repeat(40)} HEAD\0report-status delete-refs ofs-delta side-band-64k symref=HEAD:refs/heads/main\n`,
+      `${SHA} refs/heads/main\n`,
+      "flush",
+    ]);
+  });
+
   it("replaces the v2 advertisement with the live one, behind a service line", () => {
     expect(lines(rewriteAdvertisement(GIT_UPLOAD_V2, "git-upload-pack"))).toEqual([
       "# service=git-upload-pack\n",

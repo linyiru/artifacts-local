@@ -72,8 +72,14 @@ export function filterCapabilities(caps: string[], allowed: string[]): string[] 
   return out;
 }
 
+export interface Head {
+  /** Branch HEAD points at, e.g. refs/heads/main. */
+  ref: string;
+  sha: string;
+}
+
 /** Rewrite the capabilities on the first ref line of a v0/v1 advertisement. */
-function rewriteV0(pkts: Pkt[], service: Service): Pkt[] {
+function rewriteV0(pkts: Pkt[], service: Service, head?: Head): Pkt[] {
   const allowed = service === "git-upload-pack" ? UPLOAD_PACK_V0 : RECEIVE_PACK;
   const i = pkts.findIndex((p) => p instanceof Buffer && p.includes(0));
   if (i === -1) return pkts;
@@ -86,6 +92,14 @@ function rewriteV0(pkts: Pkt[], service: Service): Pkt[] {
     .split(" ")
     .filter(Boolean);
   const next = [...pkts];
+  // git's receive-pack does not list HEAD; the live service leads with it, carrying the
+  // capabilities and symref=HEAD:<branch>, as upload-pack does.
+  if (service === "git-receive-pack" && head && line.subarray(41, nul).toString("latin1") !== "HEAD") {
+    const headCaps = filterCapabilities([...caps, `symref=HEAD:${head.ref}`], allowed).join(" ");
+    next[i] = Buffer.concat([line.subarray(0, nul), Buffer.from("\n")]);
+    next.splice(i, 0, Buffer.from(`${head.sha} HEAD\0${headCaps}\n`, "latin1"));
+    return next;
+  }
   next[i] = Buffer.concat([line.subarray(0, nul + 1), Buffer.from(`${filterCapabilities(caps, allowed).join(" ")}\n`)]);
   return next;
 }
@@ -101,8 +115,11 @@ function rewriteV2(service: Service): Pkt[] {
   ];
 }
 
-/** Rewrite an `info/refs` response body. Unrecognised input is returned unchanged. */
-export function rewriteAdvertisement(body: Buffer, service: Service): Buffer {
+/**
+ * Rewrite an `info/refs` response body. Unrecognised input is returned unchanged. `head` is the
+ * repo's HEAD when it points at an existing commit, for the receive-pack HEAD line.
+ */
+export function rewriteAdvertisement(body: Buffer, service: Service, head?: Head): Buffer {
   let pkts: Pkt[];
   try {
     pkts = parsePkts(body);
@@ -111,7 +128,7 @@ export function rewriteAdvertisement(body: Buffer, service: Service): Buffer {
   }
   const isV2 = pkts.some((p) => p instanceof Buffer && p.toString("latin1") === "version 2\n");
   if (isV2) return service === "git-upload-pack" ? encodePkts(rewriteV2(service)) : body;
-  return encodePkts(rewriteV0(pkts, service));
+  return encodePkts(rewriteV0(pkts, service, head));
 }
 
 /** git config that makes git honour what the rewritten advertisement offers. */

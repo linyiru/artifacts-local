@@ -587,7 +587,7 @@ function filterCapabilities(caps, allowed) {
 	return out;
 }
 /** Rewrite the capabilities on the first ref line of a v0/v1 advertisement. */
-function rewriteV0(pkts, service) {
+function rewriteV0(pkts, service, head) {
 	const allowed = service === "git-upload-pack" ? UPLOAD_PACK_V0 : RECEIVE_PACK;
 	const i = pkts.findIndex((p) => p instanceof Buffer && p.includes(0));
 	if (i === -1) return pkts;
@@ -595,6 +595,12 @@ function rewriteV0(pkts, service) {
 	const nul = line.indexOf(0);
 	const caps = line.subarray(nul + 1).toString("latin1").replace(/\n$/, "").split(" ").filter(Boolean);
 	const next = [...pkts];
+	if (service === "git-receive-pack" && head && line.subarray(41, nul).toString("latin1") !== "HEAD") {
+		const headCaps = filterCapabilities([...caps, `symref=HEAD:${head.ref}`], allowed).join(" ");
+		next[i] = Buffer.concat([line.subarray(0, nul), Buffer.from("\n")]);
+		next.splice(i, 0, Buffer.from(`${head.sha} HEAD\0${headCaps}\n`, "latin1"));
+		return next;
+	}
 	next[i] = Buffer.concat([line.subarray(0, nul + 1), Buffer.from(`${filterCapabilities(caps, allowed).join(" ")}\n`)]);
 	return next;
 }
@@ -608,8 +614,11 @@ function rewriteV2(service) {
 		"flush"
 	];
 }
-/** Rewrite an `info/refs` response body. Unrecognised input is returned unchanged. */
-function rewriteAdvertisement(body, service) {
+/**
+* Rewrite an `info/refs` response body. Unrecognised input is returned unchanged. `head` is the
+* repo's HEAD when it points at an existing commit, for the receive-pack HEAD line.
+*/
+function rewriteAdvertisement(body, service, head) {
 	let pkts;
 	try {
 		pkts = parsePkts(body);
@@ -617,7 +626,7 @@ function rewriteAdvertisement(body, service) {
 		return body;
 	}
 	if (pkts.some((p) => p instanceof Buffer && p.toString("latin1") === "version 2\n")) return service === "git-upload-pack" ? encodePkts(rewriteV2(service)) : body;
-	return encodePkts(rewriteV0(pkts, service));
+	return encodePkts(rewriteV0(pkts, service, head));
 }
 /** git config that makes git honour what the rewritten advertisement offers. */
 const CAPABILITY_CONFIG = [
@@ -1404,6 +1413,29 @@ async function pushPayloads(gitDir, before, after) {
 	}
 	return payloads;
 }
+/** HEAD's branch and commit, or undefined for an empty repo. */
+async function resolveHead(gitDir) {
+	const ref = await git([
+		"--git-dir",
+		gitDir,
+		"symbolic-ref",
+		"-q",
+		"HEAD"
+	]);
+	const sha = await git([
+		"--git-dir",
+		gitDir,
+		"rev-parse",
+		"-q",
+		"--verify",
+		"HEAD^{commit}"
+	]);
+	if (ref.code !== 0 || sha.code !== 0) return void 0;
+	return {
+		ref: ref.stdout.toString().trim(),
+		sha: sha.stdout.toString().trim()
+	};
+}
 /** Serialise pushes per repo so ref snapshots attribute updates to the right push. */
 const pushLocks = /* @__PURE__ */ new Map();
 function withLock(key, fn) {
@@ -1530,10 +1562,10 @@ async function handleGit(store, req, res, url) {
 		return true;
 	}
 	const query = url.search.slice(1);
-	const advertise = (body) => rewriteAdvertisement(body, route.service);
+	const advertise = (head) => (body) => rewriteAdvertisement(body, route.service, head);
 	if (route.service === "git-upload-pack") {
 		if (route.path === "/info/refs") {
-			await runBackend(store, route, req, res, query, { transform: advertise });
+			await runBackend(store, route, req, res, query, { transform: advertise() });
 			return true;
 		}
 		const body = await readBody(req);
@@ -1546,7 +1578,7 @@ async function handleGit(store, req, res, url) {
 		return true;
 	}
 	if (route.path === "/info/refs") {
-		await runBackend(store, route, req, res, query, { transform: advertise });
+		await runBackend(store, route, req, res, query, { transform: advertise(await resolveHead(store.gitDir(route.ns, route.repo))) });
 		return true;
 	}
 	const gitDir = store.gitDir(route.ns, route.repo);
