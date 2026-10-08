@@ -210,8 +210,23 @@ A token with **Account → Artifacts → Edit** works for both; so does the OAut
 namespace and delete it afterwards. A full recording is about 100 operations; Artifacts includes
 10,000 a month before billing.
 
+## Testing failure handling
+
+Limits and faults are opt-in, to exercise retries and degradation before production does:
+
+```sh
+npx artifacts-local serve --rate-limit 20/10          # 429 + Retry-After past 20 requests per 10 s
+npx artifacts-local serve --rate-limit default        # the documented 2000 per 10 s
+npx artifacts-local serve --fail-rate 0.1 --fault-seed 1 --latency 200
+npx artifacts-local serve --max-repo-bytes 1048576    # refuse pushes past 1 MB (default 1 GB)
+```
+
+Rate limits count HTTP requests per namespace (REST and the binding) and per repo (git); a single
+`git fetch` is several requests. How the live service answers these conditions is not documented,
+so the response bodies are guesses (see SPEC.md).
+
 ## Not emulated
 
-Rate limits, the 1 GB repo / 1 TB account caps, jurisdictions beyond storing the field, Workers
-Builds integration, metrics, and the `include-tag` capability. `import` reaches only public
-remotes (it shells out to `git clone`).
+The 1 TB account cap, jurisdictions beyond storing the field, Workers Builds integration, and
+GraphQL itself (`/__local/metrics` serves the same groups over plain HTTP). `import` reaches only
+public remotes (it shells out to `git clone`).

@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   types the live service uses; `/__local/metrics` groups them like
   `artifactsEventsAdaptiveGroups`, and `/__local/usage` estimates the monthly
   cost of recorded or projected volumes at list prices.
+- The documented 1 GB repository limit is enforced on push
+  (`--max-repo-bytes`). Opt-in rate limiting (`--rate-limit`) and fault
+  injection (`--fail-rate`, `--latency`, `--fault-seed`) for testing retries;
+  both are recorded as metrics.
 
 ### Changed
 

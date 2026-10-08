@@ -146,5 +146,7 @@ Checked by hand against git 2.55 (2026-10-08); unverified against the live servi
 | Limit | Source | Emulated |
 |---|---|---|
 | Max file/blob 32 MB | [docs] Limits | Yes: `hooks/pre-receive` refuses the push; refs stay unchanged. The real error text is undocumented (guess). Configurable with `maxBlobBytes`. |
-| Max repo 1 GB, account 1 TB | [docs] Limits | No |
-| 2000 req / 10 s per namespace (control plane) and per repo (git) | [docs] Limits | No |
+| Max repo 1 GB | [docs] Limits | Yes: `hooks/pre-receive` refuses a push that would grow the repo past it (measured with `du`, so approximate). Error text is a guess. `maxRepoBytes` / `--max-repo-bytes` |
+| Max account 1 TB | [docs] Limits | No |
+| 2000 req / 10 s per namespace (control plane) and per repo (git) | [docs] Limits | Opt-in: `rateLimit` / `--rate-limit default` (or a lower `<n>/<s>` for tests). Counts HTTP requests; answers 429 with `Retry-After`, and code 971 on REST, the generic Cloudflare API throttling code (the Artifacts response is a guess). Recorded as a `rateLimited` metric |
+| Server errors and latency | — | Opt-in fault injection: `faults` / `--fail-rate`, `--latency`, `--fault-seed`. 500 with code 10400 on REST, a 500 on git, `INTERNAL_ERROR` from the binding; recorded as `serverError` "injected failure" |
