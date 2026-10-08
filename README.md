@@ -31,8 +31,8 @@ docs are silent.
 
 Artifacts is Git storage you can create and fork programmatically. Everything a Git *platform* adds
 on top is left to you, and the emulator deliberately does not add it either, so code that works
-here works in production. Per the docs and `@cloudflare/workers-types` as of 2026-10-08 (not yet
-checked against the live service):
+here works in production. Per the docs, `@cloudflare/workers-types`, and the live service as of
+2026-10-08:
 
 | Missing | What Artifacts has instead | Building it yourself |
 |---|---|---|
@@ -126,17 +126,29 @@ npm run e2e            # real `wrangler dev` + example app + git push
 
 ### Checking parity with the real service
 
-The contract suite in `test/contract` runs against either target. Point it at Cloudflare with an
-API token that has **Account → Artifacts → Edit** (OAuth logins from `wrangler login` or `cf auth
-login` are refused by the REST API):
+The live service, not the docs, is the reference: it already differs from them in places (token
+format, fork options, `read_only`; see SPEC.md). Parity is checked in three layers:
 
-```sh
-ARTIFACTS_LIVE=1 CLOUDFLARE_ACCOUNT_ID=... ARTIFACTS_API_TOKEN=... npm run test:live
-```
+1. **Recorded fixture, every CI run, no credentials.** `test/fixtures/live.json` is a recording
+   of a fixed scenario (`test/record/scenario.ts`: every REST route plus git push, clone, partial
+   and shallow clone, and auth failures) against the live service, with ids, hashes, times, and
+   secrets normalised. `test/fixtures.test.ts` replays the scenario against the emulator and
+   compares each step: status, content type, body, error codes and messages, git exit codes and
+   `remote:` lines. Set `ARTIFACTS_OFFLINE=1` to skip the steps that import from GitHub.
+2. **Live contract run, on demand.** `test/contract` makes assertions against the real service:
+   ```sh
+   ARTIFACTS_LIVE=1 CLOUDFLARE_ACCOUNT_ID=... ARTIFACTS_API_TOKEN=... npm run test:live
+   ```
+3. **Re-recording when the service changes:**
+   ```sh
+   CLOUDFLARE_ACCOUNT_ID=... npm run record -- --use-cf-login   # or ARTIFACTS_API_TOKEN=...
+   ```
+   Review the fixture diff, fix the emulator until `npm test` passes, and update SPEC.md.
 
-Each run uses a fresh namespace and deletes the repos it creates. Any failure is a place where the
-emulator and the service disagree. Fix the emulator, and move the rule in SPEC.md from "doc" or
-"guess" to "live".
+A token with **Account → Artifacts → Edit** works for both; so does the OAuth token from
+`cf auth login` (checked 2026-10-08), which expires after an hour. Live runs use a throwaway
+namespace and delete it afterwards. A full recording is about 100 operations; Artifacts includes
+10,000 a month before billing.
 
 ## Not emulated
 

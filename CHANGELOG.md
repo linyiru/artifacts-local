@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `npm run record` records a fixed scenario against the live service into
   `test/fixtures/live.json` (ids, hashes, times, and secrets normalised), and
   a test replays it against the emulator step by step.
+- README and SPEC describe the live service as the reference, and which
+  rules were checked against it.
 
 ### Changed
 

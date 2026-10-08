@@ -8,15 +8,16 @@ comes from. Sources (fetched 2026-10-08):
 - **[types]** `@cloudflare/workers-types@5.20261008.1`, `interface Artifacts*`
 
 Status: **doc** = taken from the sources above, not yet checked against the
-live service. **live** = confirmed by `test/contract` running against the real
-service. Nothing is **live** yet: no Artifacts-scoped API token was available
-when this was written (OAuth logins get `10004 Access denied` on the REST API).
+live service. **live 2026-10-08** = observed on the real service; those rules are
+pinned by `test/fixtures/live.json` (replayed by `test/fixtures.test.ts`) and by
+`test/contract` (run with `npm run test:live`). Where live and the docs disagree,
+the emulator follows live.
 
 ## Names
 
 | Rule | Source | Status |
 |---|---|---|
-| Namespace and repo names start with a letter or digit; the rest is letters, digits, `.`, `_`, `-` | [docs] Limits | doc |
+| Namespace and repo names start with a letter or digit; the rest is letters, digits, `.`, `_`, `-` (live error: `must match /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/`) | [docs] Limits | live 2026-10-08 |
 | Namespace name length 2–63 | [docs] Limits | doc |
 | Repo name length: not documented; emulated as 1–63 | — | guess |
 | Creating a repo in a missing namespace creates the namespace | [docs] Namespaces | doc |
