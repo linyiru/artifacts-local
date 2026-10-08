@@ -31,7 +31,17 @@ async function seed(ns: string, repo: string): Promise<WorkTree> {
 describe("namespaces", () => {
   it("creates, gets, lists, and deletes", async () => {
     const ns = await store.createNamespace("prod", "eu");
-    expect(ns).toEqual({ name: "prod", jurisdiction: "eu", createdAt: "2026-10-08T00:00:00.000Z" });
+    expect(ns).toEqual({
+      name: "prod",
+      jurisdiction: "eu",
+      createdAt: "2026-10-08T00:00:00.000Z",
+      updatedAt: "2026-10-08T00:00:00.000Z",
+    });
+    expect(await store.countRepos("prod")).toBe(0);
+    await store.createRepo("prod", "one");
+    expect(await store.countRepos("prod")).toBe(1);
+    expect(await store.countRepos("nowhere")).toBe(0);
+    await store.deleteRepo("prod", "one");
     expect(await store.getNamespace("prod")).toEqual(ns);
     await store.createNamespace("dev");
     expect((await store.listNamespaces()).items.map((n) => n.name)).toEqual(["dev", "prod"]);

@@ -123,11 +123,14 @@ describe("REST envelope and auth", () => {
 describe("namespaces", () => {
   it("creates, lists, gets, and deletes", async () => {
     const c = await call("POST", "/namespaces", { namespace: "eu-ns", jurisdiction: "eu" });
-    expect(c.json!.result).toMatchObject({ name: "eu-ns", jurisdiction: "eu" });
+    expect(c.json!.result).toMatchObject({ namespace: "eu-ns", jurisdiction: "eu", repo_count: 0 });
+    expect(Object.keys(c.json!.result).sort()).toEqual(["created_at", "jurisdiction", "namespace", "repo_count", "updated_at"]);
+    const plain = await call("POST", "/namespaces", { namespace: "plain-ns" });
+    expect(plain.json!.result.jurisdiction).toBe("unrestricted");
     const list = await call("GET", "/namespaces?limit=100");
-    expect(list.json!.result.map((n: any) => n.name)).toContain("eu-ns");
+    expect(list.json!.result.map((n: any) => n.namespace)).toContain("eu-ns");
     expect(list.json!.result_info).toMatchObject({ per_page: 100 });
-    expect((await call("GET", "/namespaces/eu-ns")).json!.result.name).toBe("eu-ns");
+    expect((await call("GET", "/namespaces/eu-ns")).json!.result.namespace).toBe("eu-ns");
     expect((await call("POST", "/namespaces", { namespace: "eu-ns" })).status).toBe(409);
     expect(c.status).toBe(201);
     const del = await call("DELETE", "/namespaces/eu-ns");

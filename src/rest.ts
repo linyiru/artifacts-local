@@ -79,8 +79,15 @@ function created(store: Store, m: RepoMeta, token: string): Record<string, unkno
   };
 }
 
-function namespaceInfo(n: NamespaceMeta): Record<string, unknown> {
-  return { name: n.name, jurisdiction: n.jurisdiction, created_at: n.createdAt };
+// Live shape (2026-10-08); a namespace without a jurisdiction reports "unrestricted".
+async function namespaceInfo(store: Store, n: NamespaceMeta): Promise<Record<string, unknown>> {
+  return {
+    namespace: n.name,
+    jurisdiction: n.jurisdiction ?? "unrestricted",
+    repo_count: await store.countRepos(n.name),
+    created_at: n.createdAt,
+    updated_at: n.updatedAt ?? n.createdAt,
+  };
 }
 
 function tokenInfo(t: TokenInfo): Record<string, unknown> {
@@ -165,14 +172,14 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
     if (method === "POST") {
       const body = await jsonBody(req);
       const ns = await store.createNamespace(body.namespace, body.jurisdiction);
-      return { status: 201, result: namespaceInfo(ns) };
+      return { status: 201, result: await namespaceInfo(store, ns) };
     }
     if (method === "GET") {
       const limit = intParam(q, "limit") ?? 50;
       const page = await store.listNamespaces({ limit, cursor: q.get("cursor") ?? undefined });
       return {
         status: 200,
-        result: page.items.map(namespaceInfo),
+        result: await Promise.all(page.items.map((n) => namespaceInfo(store, n))),
         resultInfo: { cursor: page.nextCursor ?? "", per_page: limit, count: page.items.length },
       };
     }
@@ -183,7 +190,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
 
   // /namespaces/:ns
   if (parts.length === 2) {
-    if (method === "GET") return { status: 200, result: namespaceInfo(await store.getNamespace(ns)) };
+    if (method === "GET") return { status: 200, result: await namespaceInfo(store, await store.getNamespace(ns)) };
     if (method === "DELETE") {
       await store.deleteNamespace(ns);
       return { status: 204, empty: true };

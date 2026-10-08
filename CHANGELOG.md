@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - REST errors carry `documentation_url` and, for invalid fields,
   `source.pointer`, with the live service's messages. `REMOTE_AUTH_REQUIRED`
   answers `422`. Token requests are validated before the repo is looked up.
+- REST namespaces use the live shape `{namespace, jurisdiction, repo_count,
+  created_at, updated_at}`, with `jurisdiction: "unrestricted"` by default.
 
 ## [0.1.0] - 2026-10-08
 

@@ -42,6 +42,7 @@ export interface NamespaceMeta {
   name: string;
   jurisdiction: Jurisdiction | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CreatedRepo {
@@ -174,7 +175,7 @@ export class Store {
   async createNamespace(name: unknown, jurisdiction?: unknown): Promise<NamespaceMeta> {
     const ns = assertNamespaceName(name);
     if (jurisdiction !== undefined && jurisdiction !== null && jurisdiction !== "eu" && jurisdiction !== "us") {
-      throw new ArtifactsError("INVALID_INPUT", `Invalid jurisdiction: ${JSON.stringify(jurisdiction)}`);
+      throw new ArtifactsError("INVALID_INPUT", 'Invalid option: expected one of "eu"|"us"', "/jurisdiction");
     }
     await mkdir(this.dataDir, { recursive: true });
     try {
@@ -185,7 +186,8 @@ export class Store {
       }
       throw e;
     }
-    const meta: NamespaceMeta = { name: ns, jurisdiction: (jurisdiction as Jurisdiction) ?? null, createdAt: this.iso() };
+    const at = this.iso();
+    const meta: NamespaceMeta = { name: ns, jurisdiction: (jurisdiction as Jurisdiction) ?? null, createdAt: at, updatedAt: at };
     await writeJson(join(this.namespaceDir(ns), "namespace.json"), meta);
     return meta;
   }
@@ -221,6 +223,16 @@ export class Store {
     }
     const items = all.slice(offset, offset + limit);
     return { items, nextCursor: offset + limit < all.length ? encodeCursor(offset + limit) : undefined };
+  }
+
+  /** Number of repos in a namespace (REST `repo_count`). */
+  async countRepos(name: unknown): Promise<number> {
+    const ns = assertNamespaceName(name);
+    try {
+      return (await readdir(join(this.namespaceDir(ns), "repos"))).filter((e) => e.endsWith(".git")).length;
+    } catch {
+      return 0;
+    }
   }
 
   async deleteNamespace(name: unknown): Promise<void> {
