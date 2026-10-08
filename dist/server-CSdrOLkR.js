@@ -652,6 +652,156 @@ function webhookListener(url, fetchImpl = fetch) {
 	};
 }
 //#endregion
+//#region src/metrics.ts
+const DIMENSIONS = [
+	"repository",
+	"repositoryNamespace",
+	"repositoryName",
+	"eventKind",
+	"eventType",
+	"errorMessage",
+	"date",
+	"datetime",
+	"datetimeMinute",
+	"datetimeFiveMinutes",
+	"datetimeFifteenMinutes",
+	"datetimeHour",
+	"datetimeSixHours"
+];
+function truncate(iso, minutes) {
+	const ms = 6e4 * minutes;
+	return new Date(Math.floor(Date.parse(iso) / ms) * ms).toISOString().replace(".000Z", "Z");
+}
+function dimensionValue(e, d) {
+	switch (d) {
+		case "repository": return e.repositoryNamespace && e.repositoryName ? `${e.repositoryNamespace}/${e.repositoryName}` : "";
+		case "date": return e.datetime.slice(0, 10);
+		case "datetime": return e.datetime;
+		case "datetimeMinute": return truncate(e.datetime, 1);
+		case "datetimeFiveMinutes": return truncate(e.datetime, 5);
+		case "datetimeFifteenMinutes": return truncate(e.datetime, 15);
+		case "datetimeHour": return truncate(e.datetime, 60);
+		case "datetimeSixHours": return truncate(e.datetime, 360);
+		default: return String(e[d]);
+	}
+}
+/** Nearest-rank quantile of sorted values. */
+function quantile(sorted, q) {
+	if (sorted.length === 0) return 0;
+	return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))];
+}
+/** Operations the live service recorded with a duration of 0. */
+const INSTANT = /* @__PURE__ */ new Set([
+	"create",
+	"delete",
+	"fork",
+	"token_create",
+	"token_revoke",
+	"namespace_create",
+	"namespace_delete"
+]);
+/** The live event type of a REST call, from its method and path below `/artifacts`. */
+function restOperation(method, parts) {
+	if (parts[0] !== "namespaces") return null;
+	const ns = parts[1] ?? "";
+	const repo = parts[2] === "repos" ? parts[3] ?? "" : "";
+	const op = (type) => ({
+		type,
+		namespace: ns,
+		repo
+	});
+	if (parts.length === 1) return method === "POST" ? op("namespace_create") : op("namespace_list");
+	if (parts.length === 2) return method === "DELETE" ? op("namespace_delete") : op("namespace_get");
+	if (parts[2] === "tokens") return method === "POST" ? op("token_create") : op("token_revoke");
+	if (parts.length === 3) return method === "POST" ? op("create") : op("read");
+	if (parts.length === 4) return method === "DELETE" ? op("delete") : op("read");
+	if (parts[4] === "fork") return op("fork");
+	if (parts[4] === "import") return op("create");
+	return op("read");
+}
+var Metrics = class {
+	events = [];
+	now;
+	max;
+	constructor(now = Date.now, max = 1e5) {
+		this.now = now;
+		this.max = max;
+	}
+	/** Record an operation's outcome: an action, or clientError / serverError by HTTP status. */
+	recordOperation(op, status, durationMs) {
+		const failed = status >= 400;
+		this.record({
+			repositoryNamespace: op.namespace,
+			repositoryName: op.repo,
+			eventKind: failed ? "error" : "action",
+			eventType: !failed ? op.type : status >= 500 ? "serverError" : "clientError",
+			errorMessage: !failed ? "" : `${op.type} ${status >= 500 ? "failed" : "rejected"}`,
+			durationMs: !failed && INSTANT.has(op.type) ? 0 : Math.round(durationMs * 100) / 100
+		});
+	}
+	record(e) {
+		this.events.push({
+			...e,
+			errorMessage: e.errorMessage ?? "",
+			datetime: new Date(this.now()).toISOString()
+		});
+		if (this.events.length > this.max) this.events.shift();
+	}
+	/** Group matching events by `by`, like `artifactsEventsAdaptiveGroups`, ordered by count desc. */
+	groups(filter = {}, by = [], limit = 100) {
+		const matching = this.events.filter((e) => (!filter.datetime_geq || e.datetime >= filter.datetime_geq) && (!filter.datetime_leq || e.datetime <= filter.datetime_leq) && (!filter.repository || dimensionValue(e, "repository") === filter.repository) && (!filter.repositoryNamespace || e.repositoryNamespace === filter.repositoryNamespace) && (!filter.repositoryName || e.repositoryName === filter.repositoryName) && (!filter.eventKind || e.eventKind === filter.eventKind) && (!filter.eventType || e.eventType === filter.eventType));
+		const buckets = /* @__PURE__ */ new Map();
+		for (const e of matching) {
+			const key = JSON.stringify(by.map((d) => dimensionValue(e, d)));
+			buckets.set(key, [...buckets.get(key) ?? [], e]);
+		}
+		const groups = [];
+		for (const [key, es] of buckets) {
+			const values = JSON.parse(key);
+			const durations = es.map((e) => e.durationMs).toSorted((a, b) => a - b);
+			const sum = durations.reduce((a, b) => a + b, 0);
+			groups.push({
+				count: es.length,
+				sum: { durationMs: sum },
+				avg: { durationMs: sum / es.length },
+				quantiles: {
+					durationMsP25: quantile(durations, .25),
+					durationMsP50: quantile(durations, .5),
+					durationMsP75: quantile(durations, .75),
+					durationMsP90: quantile(durations, .9),
+					durationMsP95: quantile(durations, .95),
+					durationMsP99: quantile(durations, .99),
+					durationMsP999: quantile(durations, .999)
+				},
+				dimensions: Object.fromEntries(by.map((d, i) => [d, values[i]]))
+			});
+		}
+		return groups.toSorted((a, b) => b.count - a.count).slice(0, limit);
+	}
+};
+/** Workers Paid pricing for Artifacts (docs, Platform → Pricing; billing starts 2026-10-14). */
+const PRICING = {
+	includedOperations: 1e4,
+	usdPerThousandOperations: .15,
+	includedStorageGb: 1,
+	usdPerGbMonth: .5
+};
+const cents = (n) => Math.round(n * 100) / 100;
+/** Monthly cost of `operations` and an average of `storageGb` stored, at list prices. */
+function estimateCost(operations, storageGb) {
+	const ops = Math.max(0, operations - PRICING.includedOperations) / 1e3 * PRICING.usdPerThousandOperations;
+	const storage = Math.max(0, storageGb - PRICING.includedStorageGb) * PRICING.usdPerGbMonth;
+	return {
+		operations,
+		storageGb,
+		usd: {
+			operations: cents(ops),
+			storage: cents(storage),
+			total: cents(ops + storage)
+		}
+	};
+}
+//#endregion
 //#region src/capabilities.ts
 /** Split a pkt-line stream. Throws on malformed framing. */
 function parsePkts(data) {
@@ -768,119 +918,6 @@ const CAPABILITY_CONFIG = [
 	["receive.advertisePushOptions", "false"]
 ];
 //#endregion
-//#region src/metrics.ts
-function truncate(iso, minutes) {
-	const ms = 6e4 * minutes;
-	return new Date(Math.floor(Date.parse(iso) / ms) * ms).toISOString().replace(".000Z", "Z");
-}
-function dimensionValue(e, d) {
-	switch (d) {
-		case "repository": return e.repositoryNamespace && e.repositoryName ? `${e.repositoryNamespace}/${e.repositoryName}` : "";
-		case "date": return e.datetime.slice(0, 10);
-		case "datetime": return e.datetime;
-		case "datetimeMinute": return truncate(e.datetime, 1);
-		case "datetimeFiveMinutes": return truncate(e.datetime, 5);
-		case "datetimeFifteenMinutes": return truncate(e.datetime, 15);
-		case "datetimeHour": return truncate(e.datetime, 60);
-		case "datetimeSixHours": return truncate(e.datetime, 360);
-		default: return String(e[d]);
-	}
-}
-/** Nearest-rank quantile of sorted values. */
-function quantile(sorted, q) {
-	if (sorted.length === 0) return 0;
-	return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))];
-}
-/** Operations the live service recorded with a duration of 0. */
-const INSTANT = /* @__PURE__ */ new Set([
-	"create",
-	"delete",
-	"fork",
-	"token_create",
-	"token_revoke",
-	"namespace_create",
-	"namespace_delete"
-]);
-/** The live event type of a REST call, from its method and path below `/artifacts`. */
-function restOperation(method, parts) {
-	if (parts[0] !== "namespaces") return null;
-	const ns = parts[1] ?? "";
-	const repo = parts[2] === "repos" ? parts[3] ?? "" : "";
-	const op = (type) => ({
-		type,
-		namespace: ns,
-		repo
-	});
-	if (parts.length === 1) return method === "POST" ? op("namespace_create") : op("namespace_list");
-	if (parts.length === 2) return method === "DELETE" ? op("namespace_delete") : op("namespace_get");
-	if (parts[2] === "tokens") return method === "POST" ? op("token_create") : op("token_revoke");
-	if (parts.length === 3) return method === "POST" ? op("create") : op("read");
-	if (parts.length === 4) return method === "DELETE" ? op("delete") : op("read");
-	if (parts[4] === "fork") return op("fork");
-	if (parts[4] === "import") return op("create");
-	return op("read");
-}
-var Metrics = class {
-	events = [];
-	now;
-	max;
-	constructor(now = Date.now, max = 1e5) {
-		this.now = now;
-		this.max = max;
-	}
-	/** Record an operation's outcome: an action, or clientError / serverError by HTTP status. */
-	recordOperation(op, status, durationMs) {
-		const failed = status >= 400;
-		this.record({
-			repositoryNamespace: op.namespace,
-			repositoryName: op.repo,
-			eventKind: failed ? "error" : "action",
-			eventType: !failed ? op.type : status >= 500 ? "serverError" : "clientError",
-			errorMessage: !failed ? "" : `${op.type} ${status >= 500 ? "failed" : "rejected"}`,
-			durationMs: !failed && INSTANT.has(op.type) ? 0 : Math.round(durationMs * 100) / 100
-		});
-	}
-	record(e) {
-		this.events.push({
-			...e,
-			errorMessage: e.errorMessage ?? "",
-			datetime: new Date(this.now()).toISOString()
-		});
-		if (this.events.length > this.max) this.events.shift();
-	}
-	/** Group matching events by `by`, like `artifactsEventsAdaptiveGroups`, ordered by count desc. */
-	groups(filter = {}, by = [], limit = 100) {
-		const matching = this.events.filter((e) => (!filter.datetime_geq || e.datetime >= filter.datetime_geq) && (!filter.datetime_leq || e.datetime <= filter.datetime_leq) && (!filter.repository || dimensionValue(e, "repository") === filter.repository) && (!filter.repositoryNamespace || e.repositoryNamespace === filter.repositoryNamespace) && (!filter.repositoryName || e.repositoryName === filter.repositoryName) && (!filter.eventKind || e.eventKind === filter.eventKind) && (!filter.eventType || e.eventType === filter.eventType));
-		const buckets = /* @__PURE__ */ new Map();
-		for (const e of matching) {
-			const key = JSON.stringify(by.map((d) => dimensionValue(e, d)));
-			buckets.set(key, [...buckets.get(key) ?? [], e]);
-		}
-		const groups = [];
-		for (const [key, es] of buckets) {
-			const values = JSON.parse(key);
-			const durations = es.map((e) => e.durationMs).toSorted((a, b) => a - b);
-			const sum = durations.reduce((a, b) => a + b, 0);
-			groups.push({
-				count: es.length,
-				sum: { durationMs: sum },
-				avg: { durationMs: sum / es.length },
-				quantiles: {
-					durationMsP25: quantile(durations, .25),
-					durationMsP50: quantile(durations, .5),
-					durationMsP75: quantile(durations, .75),
-					durationMsP90: quantile(durations, .9),
-					durationMsP95: quantile(durations, .95),
-					durationMsP99: quantile(durations, .99),
-					durationMsP999: quantile(durations, .999)
-				},
-				dimensions: Object.fromEntries(by.map((d, i) => [d, values[i]]))
-			});
-		}
-		return groups.toSorted((a, b) => b.count - a.count).slice(0, limit);
-	}
-};
-//#endregion
 //#region src/tokens.ts
 const DEFAULT_TTL = 86400;
 const MAX_TTL = 31536e3;
@@ -989,6 +1026,21 @@ function decodeCursor(cursor) {
 	} catch {}
 	throw new ArtifactsError("INVALID_INPUT", "Invalid cursor");
 }
+async function directorySize(dir) {
+	let entries = [];
+	try {
+		entries = await readdir(dir, { withFileTypes: true });
+	} catch {
+		return 0;
+	}
+	let total = 0;
+	for (const e of entries) {
+		const p = join(dir, e.name);
+		if (e.isDirectory()) total += await directorySize(p);
+		else if (e.isFile()) total += (await stat(p)).size;
+	}
+	return total;
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 var Store = class {
 	dataDir;
@@ -1090,6 +1142,12 @@ var Store = class {
 		} catch {
 			return 0;
 		}
+	}
+	/** Bytes stored across every repo, the emulator's stand-in for billed storage. */
+	async storageBytes() {
+		let total = 0;
+		for (const ns of (await this.listNamespaces({ limit: 1e4 })).items) total += await directorySize(join(this.namespaceDir(ns.name), "repos"));
+		return total;
 	}
 	async deleteNamespace(name) {
 		const ns = assertNamespaceName(name);
@@ -2306,6 +2364,49 @@ async function handleLocal(store, req, res, url) {
 		}
 		const type = url.searchParams.get("type");
 		json(200, store.events.history.filter((e) => !type || e.type === type));
+		return true;
+	}
+	if (url.pathname === "/__local/metrics" && req.method === "GET") {
+		const q = url.searchParams;
+		const by = (q.get("groupBy") ?? "").split(",").filter(Boolean);
+		const unknown = by.filter((d) => !DIMENSIONS.includes(d));
+		if (unknown.length) {
+			json(400, { error: `unknown dimension: ${unknown.join(", ")}; use ${DIMENSIONS.join(", ")}` });
+			return true;
+		}
+		const filter = {};
+		for (const k of [
+			"datetime_geq",
+			"datetime_leq",
+			"repository",
+			"repositoryNamespace",
+			"repositoryName",
+			"eventKind",
+			"eventType"
+		]) {
+			const v = q.get(k);
+			if (v) filter[k] = v;
+		}
+		json(200, { artifactsEventsAdaptiveGroups: store.metrics.groups(filter, by, Number(q.get("limit") ?? 100)) });
+		return true;
+	}
+	if (url.pathname === "/__local/usage" && req.method === "GET") {
+		const q = url.searchParams;
+		const byType = Object.fromEntries(store.metrics.groups({ eventKind: "action" }, ["eventType"], 1e3).map((g) => [g.dimensions.eventType, g.count]));
+		const operations = Object.values(byType).reduce((a, b) => a + b, 0);
+		const storageBytes = await store.storageBytes();
+		const projected = q.has("operations") || q.has("storageGb");
+		json(200, {
+			recorded: {
+				operations,
+				byType,
+				storageBytes
+			},
+			estimate: estimateCost(q.has("operations") ? Number(q.get("operations")) : operations, q.has("storageGb") ? Number(q.get("storageGb")) : storageBytes / 1024 ** 3),
+			basis: projected ? "projection" : "recorded",
+			pricing: PRICING,
+			note: "Counts every successful operation; which ones Cloudflare bills is not documented beyond create, push, pull, and clone."
+		});
 		return true;
 	}
 	const queue = /^\/__local\/queues\/([^/]+)\/(subscriptions|messages)(?:\/([^/]+))?$/.exec(url.pathname);

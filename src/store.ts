@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -129,6 +130,22 @@ function decodeCursor(cursor: string | undefined): number {
   throw new ArtifactsError("INVALID_INPUT", "Invalid cursor");
 }
 
+async function directorySize(dir: string): Promise<number> {
+  let entries: Dirent[] = [];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  let total = 0;
+  for (const e of entries) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) total += await directorySize(p);
+    else if (e.isFile()) total += (await stat(p)).size;
+  }
+  return total;
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class Store {
@@ -254,6 +271,15 @@ export class Store {
     } catch {
       return 0;
     }
+  }
+
+  /** Bytes stored across every repo, the emulator's stand-in for billed storage. */
+  async storageBytes(): Promise<number> {
+    let total = 0;
+    for (const ns of (await this.listNamespaces({ limit: 10_000 })).items) {
+      total += await directorySize(join(this.namespaceDir(ns.name), "repos"));
+    }
+    return total;
   }
 
   async deleteNamespace(name: unknown): Promise<void> {

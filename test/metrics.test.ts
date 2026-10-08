@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIMENSIONS, Metrics, dimensionValue } from "../src/metrics.ts";
+import { DIMENSIONS, Metrics, PRICING, dimensionValue, estimateCost, restOperation } from "../src/metrics.ts";
 
 const at = (iso: string) => Date.parse(iso);
 
@@ -93,5 +93,43 @@ describe("Metrics", () => {
       m.record({ repositoryNamespace: "n", repositoryName: t, eventKind: "action", eventType: "read", durationMs: 1 });
     expect(m.events.map((e) => e.repositoryName)).toEqual(["b", "c"]);
     expect(m.events[0]!.errorMessage).toBe("");
+  });
+});
+
+describe("estimateCost", () => {
+  it("charges only beyond the included operations and storage", () => {
+    expect(estimateCost(10_000, 1)).toEqual({
+      operations: 10_000,
+      storageGb: 1,
+      usd: { operations: 0, storage: 0, total: 0 },
+    });
+    expect(estimateCost(0, 0).usd.total).toBe(0);
+    // 1,000 agents × 50 operations a day × 30 days, 20 GB stored.
+    expect(estimateCost(1_500_000, 20).usd).toEqual({ operations: 223.5, storage: 9.5, total: 233 });
+    expect(PRICING).toMatchObject({ includedOperations: 10_000, usdPerThousandOperations: 0.15 });
+  });
+});
+
+describe("restOperation", () => {
+  it.each([
+    ["POST", ["namespaces"], "namespace_create", "", ""],
+    ["GET", ["namespaces"], "namespace_list", "", ""],
+    ["GET", ["namespaces", "n"], "namespace_get", "n", ""],
+    ["DELETE", ["namespaces", "n"], "namespace_delete", "n", ""],
+    ["POST", ["namespaces", "n", "tokens"], "token_create", "n", ""],
+    ["DELETE", ["namespaces", "n", "tokens", "t"], "token_revoke", "n", ""],
+    ["POST", ["namespaces", "n", "repos"], "create", "n", ""],
+    ["GET", ["namespaces", "n", "repos"], "read", "n", ""],
+    ["GET", ["namespaces", "n", "repos", "r"], "read", "n", "r"],
+    ["DELETE", ["namespaces", "n", "repos", "r"], "delete", "n", "r"],
+    ["POST", ["namespaces", "n", "repos", "r", "fork"], "fork", "n", "r"],
+    ["POST", ["namespaces", "n", "repos", "r", "import"], "create", "n", "r"],
+    ["GET", ["namespaces", "n", "repos", "r", "log"], "read", "n", "r"],
+  ])("%s %j is %s", (method, parts, type, namespace, repo) => {
+    expect(restOperation(method, parts)).toEqual({ type, namespace, repo });
+  });
+
+  it("is null outside /namespaces", () => {
+    expect(restOperation("GET", ["widgets"])).toBeNull();
   });
 });

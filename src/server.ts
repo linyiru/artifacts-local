@@ -1,6 +1,7 @@
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { EventBus, webhookListener } from "./events.ts";
+import { DIMENSIONS, type Dimension, type Filter, PRICING, estimateCost } from "./metrics.ts";
 import { handleGit } from "./git-http.ts";
 import { type RestOptions, handleRest, sendError } from "./rest.ts";
 import { Store } from "./store.ts";
@@ -53,6 +54,54 @@ async function handleLocal(store: Store, req: IncomingMessage, res: ServerRespon
       200,
       store.events.history.filter((e) => !type || e.type === type),
     );
+    return true;
+  }
+  if (url.pathname === "/__local/metrics" && req.method === "GET") {
+    // The artifactsEventsAdaptiveGroups fields, without GraphQL: ?groupBy=a,b&<filter>=…&limit=n
+    const q = url.searchParams;
+    const by = (q.get("groupBy") ?? "").split(",").filter(Boolean);
+    const unknown = by.filter((d) => !(DIMENSIONS as readonly string[]).includes(d));
+    if (unknown.length) {
+      json(400, { error: `unknown dimension: ${unknown.join(", ")}; use ${DIMENSIONS.join(", ")}` });
+      return true;
+    }
+    const filter: Filter = {};
+    for (const k of [
+      "datetime_geq",
+      "datetime_leq",
+      "repository",
+      "repositoryNamespace",
+      "repositoryName",
+      "eventKind",
+      "eventType",
+    ] as const) {
+      const v = q.get(k);
+      if (v) (filter as Record<string, string>)[k] = v;
+    }
+    json(200, {
+      artifactsEventsAdaptiveGroups: store.metrics.groups(filter, by as Dimension[], Number(q.get("limit") ?? 100)),
+    });
+    return true;
+  }
+  if (url.pathname === "/__local/usage" && req.method === "GET") {
+    // Recorded usage and its monthly cost; ?operations=&storageGb= projects other volumes.
+    const q = url.searchParams;
+    const byType = Object.fromEntries(
+      store.metrics.groups({ eventKind: "action" }, ["eventType"], 1000).map((g) => [g.dimensions.eventType!, g.count]),
+    );
+    const operations = Object.values(byType).reduce((a, b) => a + b, 0);
+    const storageBytes = await store.storageBytes();
+    const projected = q.has("operations") || q.has("storageGb");
+    json(200, {
+      recorded: { operations, byType, storageBytes },
+      estimate: estimateCost(
+        q.has("operations") ? Number(q.get("operations")) : operations,
+        q.has("storageGb") ? Number(q.get("storageGb")) : storageBytes / 1024 ** 3,
+      ),
+      basis: projected ? "projection" : "recorded",
+      pricing: PRICING,
+      note: "Counts every successful operation; which ones Cloudflare bills is not documented beyond create, push, pull, and clone.",
+    });
     return true;
   }
   const queue = /^\/__local\/queues\/([^/]+)\/(subscriptions|messages)(?:\/([^/]+))?$/.exec(url.pathname);

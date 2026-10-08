@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { a as handleBinding, t as startServer } from "./server-DpdBgd-M.js";
+import { a as handleBinding, t as startServer } from "./server-CSdrOLkR.js";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 //#region src/cli.ts

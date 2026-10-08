@@ -198,3 +198,30 @@ export class Metrics {
     return groups.toSorted((a, b) => b.count - a.count).slice(0, limit);
   }
 }
+
+/** Workers Paid pricing for Artifacts (docs, Platform → Pricing; billing starts 2026-10-14). */
+export const PRICING = {
+  includedOperations: 10_000,
+  usdPerThousandOperations: 0.15,
+  includedStorageGb: 1,
+  usdPerGbMonth: 0.5,
+} as const;
+
+export interface CostEstimate {
+  operations: number;
+  storageGb: number;
+  usd: { operations: number; storage: number; total: number };
+}
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+/** Monthly cost of `operations` and an average of `storageGb` stored, at list prices. */
+export function estimateCost(operations: number, storageGb: number): CostEstimate {
+  const ops = (Math.max(0, operations - PRICING.includedOperations) / 1000) * PRICING.usdPerThousandOperations;
+  const storage = Math.max(0, storageGb - PRICING.includedStorageGb) * PRICING.usdPerGbMonth;
+  return {
+    operations,
+    storageGb,
+    usd: { operations: cents(ops), storage: cents(storage), total: cents(ops + storage) },
+  };
+}

@@ -115,3 +115,38 @@ describe("metrics recording", () => {
     ]);
   });
 });
+
+describe("metrics and usage routes", () => {
+  it("serves groups like artifactsEventsAdaptiveGroups, with filters", async () => {
+    const res = await fetch(`${srv.url}/__local/metrics?groupBy=repository,eventType&eventKind=action&eventType=push`);
+    const body = (await res.json()) as { artifactsEventsAdaptiveGroups: { count: number; dimensions: object }[] };
+    expect(body.artifactsEventsAdaptiveGroups).toEqual([
+      expect.objectContaining({ count: 1, dimensions: { repository: "metrics/app", eventType: "push" } }),
+    ]);
+    const all = (await (await fetch(`${srv.url}/__local/metrics?limit=1`)).json()) as {
+      artifactsEventsAdaptiveGroups: { count: number; dimensions: object }[];
+    };
+    expect(all.artifactsEventsAdaptiveGroups).toEqual([expect.objectContaining({ dimensions: {} })]);
+    const bad = await fetch(`${srv.url}/__local/metrics?groupBy=colour`);
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { error: string }).error).toContain("unknown dimension: colour");
+  });
+
+  it("reports recorded usage, stored bytes, and a cost estimate or projection", async () => {
+    const usage = (await (await fetch(`${srv.url}/__local/usage`)).json()) as {
+      recorded: { operations: number; byType: Record<string, number>; storageBytes: number };
+      estimate: { usd: { total: number } };
+      basis: string;
+    };
+    expect(usage.recorded.byType).toMatchObject({ push: 1, pull: 1, create: 2 });
+    expect(usage.recorded.operations).toBe(Object.values(usage.recorded.byType).reduce((a, b) => a + b, 0));
+    expect(usage.recorded.storageBytes).toBeGreaterThan(0);
+    expect(usage).toMatchObject({ basis: "recorded", estimate: { usd: { total: 0 } } });
+    const projected = (await (await fetch(`${srv.url}/__local/usage?operations=1500000&storageGb=20`)).json()) as {
+      basis: string;
+      estimate: { usd: { total: number } };
+    };
+    expect(projected).toMatchObject({ basis: "projection", estimate: { usd: { total: 233 } } });
+    expect(await srv.store.storageBytes()).toBe(usage.recorded.storageBytes);
+  });
+});

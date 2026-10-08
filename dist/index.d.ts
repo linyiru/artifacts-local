@@ -255,6 +255,8 @@ export declare class Store {
   }>;
   /** Number of repos in a namespace (REST `repo_count`). */
   countRepos(name: unknown): Promise<number>;
+  /** Bytes stored across every repo, the emulator's stand-in for billed storage. */
+  storageBytes(): Promise<number>;
   deleteNamespace(name: unknown): Promise<void>;
   readMeta(ns: string, repo: string): Promise<RepoMeta | null>;
   private writeMeta;
