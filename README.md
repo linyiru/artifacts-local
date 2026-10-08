@@ -1,5 +1,6 @@
 # artifacts-local
 
+[![CI](https://github.com/linyiru/artifacts-local/actions/workflows/ci.yml/badge.svg)](https://github.com/linyiru/artifacts-local/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/linyiru/artifacts-local)](LICENSE)
 [![Node >= 24](https://img.shields.io/badge/node-%3E%3D24-339933?logo=node.js&logoColor=white)](package.json)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
