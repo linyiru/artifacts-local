@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   service uses (the docs still say `art_v1_`). Both formats are accepted.
 - REST `log` and `commit` return camelCase commit metadata (`treeHash`,
   `authoredAt`, `committedAt`), as the live service does.
+- REST create, fork, import, and token creation answer `201 Created`;
+  namespace deletion answers `204 No Content`.
 
 ## [0.1.0] - 2026-10-08
 

@@ -37,7 +37,7 @@ const bearer = (token: string) => ["-c", `http.extraHeader=Authorization: Bearer
 
 async function created(name: string, extra: Record<string, unknown> = {}) {
   const r = await api("POST", "/repos", { name, ...extra });
-  expect(r.status, JSON.stringify(r.json)).toBe(200);
+  expect(r.status, JSON.stringify(r.json)).toBe(201);
   return r.json.result as { id: string; remote: string; token: string; default_branch: string };
 }
 
@@ -128,7 +128,7 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     const r = await created(repoName("fsrc"));
     await seed(r.remote, r.token, ["main", "side"]);
     const f = await api("POST", `/repos/${repoName("fsrc")}/fork`, { name: repoName("fdst") });
-    expect(f.status, JSON.stringify(f.json)).toBe(200);
+    expect(f.status, JSON.stringify(f.json)).toBe(201);
     expect(f.json.result.objects).toEqual(expect.any(Number));
     const ls = await git([...bearer(f.json.result.token), "ls-remote", f.json.result.remote]);
     expect(ls.stdout.toString()).toContain("refs/heads/main");

@@ -22,12 +22,19 @@ interface ApiError {
 
 interface Reply {
   status: number;
+  /** No body at all (204). */
+  empty?: boolean;
   result?: unknown;
   resultInfo?: Record<string, unknown>;
   bytes?: { data: Buffer; type: string };
 }
 
 function send(res: ServerResponse, reply: Reply): void {
+  if (reply.empty) {
+    res.writeHead(reply.status);
+    res.end();
+    return;
+  }
   if (reply.bytes) {
     res.writeHead(reply.status, { "content-type": reply.bytes.type, "content-length": reply.bytes.data.length });
     res.end(reply.bytes.data);
@@ -158,7 +165,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
     if (method === "POST") {
       const body = await jsonBody(req);
       const ns = await store.createNamespace(body.namespace, body.jurisdiction);
-      return { status: 200, result: namespaceInfo(ns) };
+      return { status: 201, result: namespaceInfo(ns) };
     }
     if (method === "GET") {
       const limit = intParam(q, "limit") ?? 50;
@@ -179,7 +186,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
     if (method === "GET") return { status: 200, result: namespaceInfo(await store.getNamespace(ns)) };
     if (method === "DELETE") {
       await store.deleteNamespace(ns);
-      return { status: 200, result: { name: ns } };
+      return { status: 204, empty: true };
     }
     return noRoute();
   }
@@ -192,7 +199,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
       if (typeof repo !== "string" || !repo) throw new ArtifactsError("INVALID_INPUT", "repo is required");
       const t = await store.createToken(ns, repo, body.scope, body.ttl);
       return {
-        status: 200,
+        status: 201,
         result: { id: t.info.id, plaintext: t.plaintext, scope: t.info.scope, expires_at: t.info.expiresAt },
       };
     }
@@ -215,7 +222,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
         defaultBranch: optString(body, "default_branch"),
         readOnly: optBool(body, "read_only"),
       });
-      return { status: 200, result: created(store, r.meta, r.token) };
+      return { status: 201, result: created(store, r.meta, r.token) };
     }
     if (method === "GET") {
       const limit = intParam(q, "limit") ?? 50;
@@ -256,7 +263,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
       depth: optNumber(body, "depth"),
       readOnly: optBool(body, "read_only"),
     });
-    return { status: 200, result: created(store, r.meta, r.token) };
+    return { status: 201, result: created(store, r.meta, r.token) };
   }
 
   if (action === "fork" && parts.length === 5 && method === "POST") {
@@ -266,7 +273,7 @@ async function route(store: Store, req: IncomingMessage, sub: string, q: URLSear
       readOnly: optBool(body, "read_only"),
       defaultBranchOnly: optBool(body, "default_branch_only"),
     });
-    return { status: 200, result: { ...created(store, r.meta, r.token), objects: r.objects } };
+    return { status: 201, result: { ...created(store, r.meta, r.token), objects: r.objects } };
   }
 
   if (method !== "GET") return noRoute();

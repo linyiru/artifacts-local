@@ -42,8 +42,10 @@ envelope with `errors[].code` = the numeric code.
 | `UPSTREAM_UNAVAILABLE` | 10401 | 502 |
 | `MEMORY_LIMIT` | 10402 | 413 |
 
-Numeric codes: [docs] Errors. HTTP statuses: only 409 for in-progress and 202
-for delete are documented; the rest are guesses.
+Numeric codes: [docs] Errors. HTTP statuses: live 2026-10-08 for 400, 404, 409,
+422 (`REMOTE_AUTH_REQUIRED`), and 500; the rest are guesses. Successful creates
+(namespace, repo, token, fork, import) are `201`; repo delete is `202`;
+namespace delete is `204` with no body (live).
 
 ## Tokens
 

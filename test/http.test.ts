@@ -38,7 +38,7 @@ async function call(method: string, path: string, body?: unknown, headers: Recor
 
 async function createRepo(name: string, extra: Record<string, unknown> = {}) {
   const r = await call("POST", "/namespaces/default/repos", { name, ...extra });
-  expect(r.status).toBe(200);
+  expect(r.status).toBe(201);
   return r.json!.result as { remote: string; token: string; id: string };
 }
 
@@ -111,7 +111,10 @@ describe("namespaces", () => {
     expect(list.json!.result_info).toMatchObject({ per_page: 100 });
     expect((await call("GET", "/namespaces/eu-ns")).json!.result.name).toBe("eu-ns");
     expect((await call("POST", "/namespaces", { namespace: "eu-ns" })).status).toBe(409);
-    expect((await call("DELETE", "/namespaces/eu-ns")).status).toBe(200);
+    expect(c.status).toBe(201);
+    const del = await call("DELETE", "/namespaces/eu-ns");
+    expect(del.status).toBe(204);
+    expect(await del.res.text()).toBe("");
     expect((await call("GET", "/namespaces/eu-ns")).status).toBe(404);
   });
 });
@@ -373,6 +376,7 @@ describe("tokens routes", () => {
   it("creates with the documented shape and lists with offset pagination", async () => {
     await createRepo("toks");
     const t = await call("POST", "/namespaces/default/tokens", { repo: "toks", scope: "read", ttl: 3600 });
+    expect(t.status).toBe(201);
     expect(Object.keys(t.json!.result).sort()).toEqual(["expires_at", "id", "plaintext", "scope"]);
     expect(t.json!.result.plaintext).toMatch(/^art_v2_x_[0-9a-f]{40}\?expires=\d+$/);
 
@@ -440,7 +444,7 @@ describe("fork and import routes", () => {
         body: JSON.stringify({ url: w.dir, depth: 1 }),
       });
       const body = (await res.json()) as any;
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(201);
       expect(Object.keys(body.result).sort()).toEqual(["default_branch", "description", "id", "name", "remote", "token"]);
     } finally {
       await loose.close();
@@ -460,7 +464,7 @@ describe("fork and import routes", () => {
       expect(((await mid.json()) as any).errors[0].code).toBe(10303);
       const git409 = await fetch(`${slow.url}/git/default/dst.git/info/refs?service=git-upload-pack`);
       expect(git409.status).toBe(409);
-      expect((await pending).status).toBe(200);
+      expect((await pending).status).toBe(201);
     } finally {
       await slow.close();
     }
