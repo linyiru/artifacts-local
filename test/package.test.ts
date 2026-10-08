@@ -28,6 +28,34 @@ beforeAll(async () => {
 
 afterAll(() => tmp?.cleanup());
 
+const serve = (...flags: string[]) =>
+  new Promise<{ url: string; child: ReturnType<typeof spawn> }>((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [
+        join(pkg, "dist/cli.js"),
+        "serve",
+        "--port",
+        "0",
+        "--data-dir",
+        join(tmp.path, `flags-${flags.join("")}`),
+        ...flags,
+      ],
+      { cwd: app },
+    );
+    let out = "";
+    child.stdout.on("data", (d) => {
+      out += d;
+      const m = /listening on (http:\/\/\S+)/.exec(out);
+      if (m) resolve({ url: m[1]!, child });
+    });
+    child.on("exit", (code) => reject(new Error(`CLI exited with ${code}`)));
+  });
+const repos = (url: string) =>
+  fetch(`${url}/client/v4/accounts/a/artifacts/namespaces/default/repos`, {
+    headers: { authorization: "Bearer x" },
+  });
+
 describe("installed package", () => {
   it("runs the CLI with plain node, directly and through node_modules/.bin", async () => {
     const direct = await run(process.execPath, [join(pkg, "dist/cli.js"), "--help"], { cwd: app });
@@ -75,6 +103,21 @@ describe("installed package", () => {
       cwd: app,
     }).catch((e: { code: number; stderr: string }) => e);
     expect(bad).toMatchObject({ code: 1, stderr: expect.stringContaining('invalid --subscribe "nope"') });
+  });
+
+  it("throttles and injects faults from the CLI flags", async () => {
+    const limited = await serve("--rate-limit", "1/60");
+    try {
+      expect([(await repos(limited.url)).status, (await repos(limited.url)).status]).toEqual([200, 429]);
+    } finally {
+      limited.child.kill();
+    }
+    const flaky = await serve("--fail-rate", "1", "--fault-seed", "7", "--latency", "1");
+    try {
+      expect((await repos(flaky.url)).status).toBe(500);
+    } finally {
+      flaky.child.kill();
+    }
   });
 
   it("serves REST from the installed CLI", async () => {

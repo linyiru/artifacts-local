@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { resolve } from "node:path";
+import { parseRateLimit, seededRandom } from "./limits.ts";
 import { startServer } from "./server.ts";
 import { handleBinding } from "./binding-rpc.ts";
 
@@ -21,6 +22,12 @@ Options:
   --async-delay <ms>      Hold forks/imports in progress this long
   --allow-insecure-import Allow importing from file paths and http:// URLs
   --track-push-times      Update last_push_at on push (the live service does not)
+  --max-repo-bytes <n>    Largest repository a push may grow to (default 1 GB, as documented)
+  --rate-limit <spec>     Throttle per namespace and per repo: <requests>/<seconds>, or
+                          default for the documented 2000/10
+  --fail-rate <0-1>       Answer this share of Artifacts requests with a 500
+  --latency <ms>          Add this much latency to Artifacts requests
+  --fault-seed <n>        Seed for --fail-rate, to fail the same requests every run
 `;
 
 const { values, positionals } = parseArgs({
@@ -37,6 +44,11 @@ const { values, positionals } = parseArgs({
     "async-delay": { type: "string" },
     "allow-insecure-import": { type: "boolean", default: false },
     "track-push-times": { type: "boolean", default: false },
+    "max-repo-bytes": { type: "string" },
+    "rate-limit": { type: "string" },
+    "fail-rate": { type: "string" },
+    latency: { type: "string" },
+    "fault-seed": { type: "string" },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -70,6 +82,13 @@ const server = await startServer(
     asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : undefined,
     allowInsecureImport: values["allow-insecure-import"],
     trackPushTimes: values["track-push-times"],
+    maxRepoBytes: values["max-repo-bytes"] ? Number(values["max-repo-bytes"]) : undefined,
+    rateLimit: values["rate-limit"] !== undefined ? parseRateLimit(values["rate-limit"]) : undefined,
+    faults: {
+      failRate: values["fail-rate"] ? Number(values["fail-rate"]) : undefined,
+      latencyMs: values.latency ? Number(values.latency) : undefined,
+      random: values["fault-seed"] ? seededRandom(Number(values["fault-seed"])) : undefined,
+    },
   },
   [handleBinding],
 );

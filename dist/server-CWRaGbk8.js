@@ -653,6 +653,10 @@ function webhookListener(url, fetchImpl = fetch) {
 }
 //#endregion
 //#region src/limits.ts
+const DOCUMENTED_RATE_LIMIT = {
+	requests: 2e3,
+	windowMs: 1e4
+};
 const DOCUMENTED_MAX_REPO_BYTES = 1024 ** 3;
 /** Fixed-window counter per key: `requests` per `windowMs`. */
 var RateLimiter = class {
@@ -687,6 +691,27 @@ var RateLimiter = class {
 		return w ? Math.max(1, Math.ceil((w.start + this.windowMs - this.now()) / 1e3)) : 0;
 	}
 };
+/** `2000/10` → 2000 requests per 10 s; `default` → the documented limit. */
+function parseRateLimit(spec) {
+	if (spec === "default" || spec === "") return { ...DOCUMENTED_RATE_LIMIT };
+	const m = /^(\d+)\/(\d+(?:\.\d+)?)$/.exec(spec);
+	if (!m) throw new Error(`invalid rate limit ${JSON.stringify(spec)}; use <requests>/<seconds> or default`);
+	return {
+		requests: Number(m[1]),
+		windowMs: Number(m[2]) * 1e3
+	};
+}
+/** Deterministic PRNG (mulberry32), so a seeded run fails the same requests every time. */
+function seededRandom(seed) {
+	let a = seed >>> 0;
+	return () => {
+		a = a + 1831565813 >>> 0;
+		let t = a;
+		t = Math.imul(t ^ t >>> 15, t | 1);
+		t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+		return ((t ^ t >>> 14) >>> 0) / 4294967296;
+	};
+}
 var Faults = class {
 	failRate;
 	latencyMs;
@@ -2643,4 +2668,4 @@ async function startServer(opts, extra = []) {
 	};
 }
 //#endregion
-export { handleBinding as a, webhookListener as i, Store as n, EventBus as r, startServer as t };
+export { EventBus as a, seededRandom as i, Store as n, webhookListener as o, parseRateLimit as r, handleBinding as s, startServer as t };

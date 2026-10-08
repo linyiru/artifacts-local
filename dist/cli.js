@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { a as handleBinding, t as startServer } from "./server-DGJ2OhbQ.js";
+import { i as seededRandom, r as parseRateLimit, s as handleBinding, t as startServer } from "./server-CWRaGbk8.js";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 //#region src/cli.ts
@@ -20,6 +20,12 @@ Options:
   --async-delay <ms>      Hold forks/imports in progress this long
   --allow-insecure-import Allow importing from file paths and http:// URLs
   --track-push-times      Update last_push_at on push (the live service does not)
+  --max-repo-bytes <n>    Largest repository a push may grow to (default 1 GB, as documented)
+  --rate-limit <spec>     Throttle per namespace and per repo: <requests>/<seconds>, or
+                          default for the documented 2000/10
+  --fail-rate <0-1>       Answer this share of Artifacts requests with a 500
+  --latency <ms>          Add this much latency to Artifacts requests
+  --fault-seed <n>        Seed for --fail-rate, to fail the same requests every run
 `;
 const { values, positionals } = parseArgs({
 	allowPositionals: true,
@@ -53,6 +59,11 @@ const { values, positionals } = parseArgs({
 			type: "boolean",
 			default: false
 		},
+		"max-repo-bytes": { type: "string" },
+		"rate-limit": { type: "string" },
+		"fail-rate": { type: "string" },
+		latency: { type: "string" },
+		"fault-seed": { type: "string" },
 		help: {
 			type: "boolean",
 			short: "h",
@@ -93,7 +104,14 @@ const server = await startServer({
 	subscriptions: (values.subscribe ?? []).map(parseSubscribe),
 	asyncDelayMs: values["async-delay"] ? Number(values["async-delay"]) : void 0,
 	allowInsecureImport: values["allow-insecure-import"],
-	trackPushTimes: values["track-push-times"]
+	trackPushTimes: values["track-push-times"],
+	maxRepoBytes: values["max-repo-bytes"] ? Number(values["max-repo-bytes"]) : void 0,
+	rateLimit: values["rate-limit"] !== void 0 ? parseRateLimit(values["rate-limit"]) : void 0,
+	faults: {
+		failRate: values["fail-rate"] ? Number(values["fail-rate"]) : void 0,
+		latencyMs: values.latency ? Number(values.latency) : void 0,
+		random: values["fault-seed"] ? seededRandom(Number(values["fault-seed"])) : void 0
+	}
 }, [handleBinding]);
 process.stdout.write(`artifacts-local listening on ${server.url}\n`);
 process.stdout.write(`  REST: ${server.url}/client/v4/accounts/<account_id>/artifacts\n`);
