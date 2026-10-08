@@ -18,7 +18,7 @@ It reproduces all three Artifacts surfaces, backed by bare Git repositories on d
 |---|---|
 | Workers binding (`env.ARTIFACTS`) | `worker/shim.ts`, a `WorkerEntrypoint` you bind in place of the real binding under `wrangler dev`; or `createArtifactsBinding()` from `src/client.ts` |
 | REST API (`/client/v4/accounts/:id/artifacts/...`) | Same paths, same v4 envelope, same error codes |
-| Git smart HTTP (`…/git/<ns>/<repo>.git`) | `git http-backend` behind repo-token auth: Bearer or Basic, read/write scopes, push over protocol v0/v1 only, no partial clone |
+| Git smart HTTP (`…/git/<ns>/<repo>.git`) | `git http-backend` behind repo-token auth: Bearer or Basic, read/write scopes, push over protocol v0/v1 only, `filter` refused (possibly stricter than the service over v2; see below) |
 
 Also emulated: async fork/import states (`forking`, `importing`, `FORK_IN_PROGRESS`), token TTL
 bounds and expiry, read-only repos, the 32 MB per-file limit, and the documented event envelopes
@@ -26,6 +26,26 @@ bounds and expiry, read-only repos, the 32 MB per-file limit, and the documented
 
 [SPEC.md](SPEC.md) lists every emulated rule, its source, and which ones are guesses because the
 docs are silent.
+
+## What Artifacts does not provide
+
+Artifacts is Git storage you can create and fork programmatically. Everything a Git *platform* adds
+on top is left to you, and the emulator deliberately does not add it either, so code that works
+here works in production. Per the docs and `@cloudflare/workers-types` as of 2026-10-08 (not yet
+checked against the live service):
+
+| Missing | What Artifacts has instead | Building it yourself |
+|---|---|---|
+| List, create, or delete branches and tags | Refs only appear as a `ref` parameter to `log()` / `readFile()` | Use `git push` (`git push remote HEAD:refs/heads/x`, `:x` to delete) and `git ls-remote` for listing; or track refs from `cf.artifacts.repo.pushed` events |
+| Write commits or files through the API | `git push` with a write token is the only write path | Run `git` in a Container or Sandbox, or use isomorphic-git in a Worker for small repos |
+| Diff or compare two refs | `readCommit`, `readTree` (one level), `readBlob` | Walk both trees with `readTree`, skip subtrees whose hashes match, `readBlob` the changed files, line-diff them (e.g. jsdiff) |
+| Merge base | `readCommit` gives `parents` | Walk parents from both heads. A fork carries its source's history, so the base is reachable from the fork |
+| Merge, rebase, conflict detection | — | Real `git` (Container/Sandbox): clone base, fetch the fork, merge, push |
+| Pull requests, code review, issues | Push events (`cf.artifacts.repo.pushed`) | Keep them in D1 or Durable Objects; start review from push events |
+| Public or anonymous access | Every Git route needs a repo token; REST needs a Cloudflare API token | A Worker that proxies `git-upload-pack` and adds a short-lived read token; refuse `git-receive-pack`. Mind the 2000 req / 10 s per-repo Git limit (consider `bundle-uri` with bundles in R2) |
+| Tarball or zip download | `blob`, `file`, `raw` return one file at a time | Walk the tree, stream a tar through `CompressionStream("gzip")`, cache by commit hash in R2 |
+| A target namespace on fork | `fork(name)` and REST fork take no namespace (yet the docs' `repo.forked` event example shows a different target namespace) | Clone and push into a repo in the other namespace |
+| `filter` over protocol v1; push over protocol v2 | Clone and fetch over v1/v2, push over v0/v1. ArtifactFS does blobless clones of Artifacts remotes, which suggests `filter` works over v2 | Let git negotiate v2 (the default) for partial clones |
 
 ## Requirements
 
