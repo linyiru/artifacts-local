@@ -92,6 +92,17 @@ for delete are documented; the rest are guesses.
 | Import: HTTPS only (`INVALID_INPUT`), optional `branch`, `depth` | [types] |
 | REST delete returns `202 Accepted` with `{id}`; binding returns boolean | [docs] |
 
+## Undocumented, emulated as plain git does it
+
+Checked by hand against git 2.55 (2026-10-08); unverified against the live service.
+
+| Behaviour | Emulated as |
+|---|---|
+| Push from a shallow clone | Refused (`shallow update not allowed`), git's default `receive.shallowUpdate=false` |
+| Fork with `defaultBranchOnly` | `git clone --single-branch`: annotated tags reachable from the default branch come along |
+| `fetched` / `cloned` events | Emitted only when a pack is actually sent; a fetch that finds nothing new emits nothing |
+| Branch deletion, force push | Allowed, including deleting the default branch (`receive.denyDeleteCurrent=false`) |
+
 ## Events
 
 Shape from [docs] Event subscriptions: `cf.artifacts.repo.{created,deleted,forked,imported,pushed,cloned,fetched,token.created,token.revoked}`
