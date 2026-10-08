@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "ignorePatterns": [
+    "dist/**",
+    "coverage/**",
+    "examples/**/.wrangler/**",
+    "test/fixtures/**",
+    "*.md",
+    "package.json",
+    "package-lock.json"
+  ]
+}

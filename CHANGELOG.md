@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency.
 - Lint with oxlint (`npm run lint`): correctness, suspicious, and perf rules
   as errors.
+- Format with oxfmt (`npm run format`, 120 columns); recordings, `dist/`,
+  Markdown, and npm-managed files are left as they are.
 
 ## [0.2.1] - 2026-10-08
 

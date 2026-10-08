@@ -41,13 +41,16 @@
     "e2e": "scripts/e2e-wrangler.sh",
     "record": "node scripts/record.ts",
     "build": "tsdown",
-    "lint": "oxlint --deny-warnings"
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
   },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "24.13.6",
     "@vitest/coverage-v8": "4.1.11",
     "miniflare": "5.20260921.0-alpha",
+    "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
     "publint": "0.3.24",
     "rolldown": "1.2.10",
