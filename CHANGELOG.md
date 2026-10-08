@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   username.
 - Partial clone (`--filter`) works over protocol v2 and is ignored over v0,
   as live; it used to be refused over both.
+- `read_only` no longer blocks a write-token push: the live service accepts
+  such a push, so the emulator does too. Use read tokens to keep a repo
+  unchanged.
 
 ## [0.1.0] - 2026-10-08
 

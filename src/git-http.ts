@@ -259,9 +259,8 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
     return false;
   }
 
-  let meta;
   try {
-    meta = await store.getReadyRepo(route.ns, route.repo);
+    await store.getReadyRepo(route.ns, route.repo);
   } catch (e) {
     const err = e as ArtifactsError;
     plain(res, err.status ?? 500, err.message);
@@ -284,10 +283,7 @@ export async function handleGit(store: Store, req: IncomingMessage, res: ServerR
     plain(res, 403, "Insufficient permissions");
     return true;
   }
-  if (needed === "write" && meta.readOnly) {
-    plain(res, 403, "Repository is read-only");
-    return true;
-  }
+  // Live (2026-10-08): `read_only` does not stop a push made with a write token, so neither do we.
 
   const query = url.search.slice(1);
   if (route.service === "git-upload-pack") {

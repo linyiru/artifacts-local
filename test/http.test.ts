@@ -286,13 +286,12 @@ describe("git over HTTP", () => {
     expect((await call("DELETE", "/namespaces/default/tokens/zzzzzzzzzzzzzzzz")).status).toBe(404);
   });
 
-  it("rejects pushes to read-only repos", async () => {
+  it("accepts a write-token push to a read-only repo, as live does", async () => {
     const { remote, token } = await createRepo("frozen", { read_only: true });
     const w = await work();
     await w.commit("init");
     const r = await git(["-C", w.dir, ...bearer(token), "push", remote, "main"]);
-    expect(r.code).not.toBe(0);
-    expect(r.stderr).toContain("403");
+    expect(r.code, r.stderr).toBe(0);
   });
 
   it("returns 404 for unknown repos and dumb HTTP paths", async () => {

@@ -69,7 +69,7 @@ namespace delete is `204` with no body (live).
 | upload-pack: v1 and v2 | [docs] |
 | receive-pack: v1 only; v2 not supported | [docs] |
 | `filter` (partial clone) works over protocol v2 and is ignored over v0/v1 ("filtering not recognized by server") | [docs] (v1), live 2026-10-08 |
-| Read-only repos reject push | inferred from `read_only` |
+| `read_only` does **not** stop a push made with a write token; it is stored and reported only | live 2026-10-08 |
 
 ## Repo content (binding and REST)
 

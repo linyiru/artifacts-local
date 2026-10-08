@@ -21,7 +21,7 @@ It reproduces all three Artifacts surfaces, backed by bare Git repositories on d
 | Git smart HTTP (`…/git/<ns>/<repo>.git`) | `git http-backend` behind repo-token auth: Bearer or Basic, read/write scopes, push over protocol v0/v1 only, partial clone (`--filter`) over v2 only |
 
 Also emulated: async fork/import states (`forking`, `importing`, `FORK_IN_PROGRESS`), token TTL
-bounds and expiry, read-only repos, the 32 MB per-file limit, and the documented event envelopes
+bounds and expiry, the 32 MB per-file limit, and the documented event envelopes
 (`cf.artifacts.repo.pushed` and friends), which you can read back or have POSTed to a webhook.
 
 [SPEC.md](SPEC.md) lists every emulated rule, its source, and which ones are guesses because the
@@ -44,6 +44,7 @@ checked against the live service):
 | Pull requests, code review, issues | Push events (`cf.artifacts.repo.pushed`) | Keep them in D1 or Durable Objects; start review from push events |
 | Public or anonymous access | Every Git route needs a repo token; REST needs a Cloudflare API token | A Worker that proxies `git-upload-pack` and adds a short-lived read token; refuse `git-receive-pack`. Mind the 2000 req / 10 s per-repo Git limit (consider `bundle-uri` with bundles in R2) |
 | Tarball or zip download | `blob`, `file`, `raw` return one file at a time | Walk the tree, stream a tar through `CompressionStream("gzip")`, cache by commit hash in R2 |
+| Write protection | `read_only: true` is stored and reported, but a write token can still push (checked live 2026-10-08) | Issue only read tokens for repos that must not change |
 | A target namespace on fork | `fork(name)` and REST fork take no namespace (yet the docs' `repo.forked` event example shows a different target namespace) | Clone and push into a repo in the other namespace |
 | `filter` over protocol v0/v1; push over protocol v2 | Clone and fetch over v1/v2, push over v0/v1; `--filter` works over v2 (checked live) | Let git negotiate v2 (the default) for partial clones |
 

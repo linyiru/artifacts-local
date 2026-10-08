@@ -192,12 +192,13 @@ describe(`contract (${LIVE ? "live" : "local"})`, () => {
     expect(ls.code).not.toBe(0);
   });
 
-  it("refuses push to a read-only repo", async () => {
+  // Surprising, but observed live on 2026-10-08: read_only does not block a write-token push.
+  it("accepts a write-token push to a read-only repo", async () => {
     const r = await created(repoName("ro"), { read_only: true });
     const w = await WorkTree.init(join(tmp.path, `ro-${suffix}`));
     await w.commit("x");
     const push = await git(["-C", w.dir, ...bearer(r.token), "push", r.remote, "main"]);
-    expect(push.code).not.toBe(0);
+    expect(push.code, push.stderr).toBe(0);
   });
 
   it("deletes with 202 Accepted and {id}", async () => {
