@@ -36,13 +36,16 @@ export class ArtifactsError extends Error {
   override readonly name = "ArtifactsError" as const;
   readonly code: ArtifactsErrorCode;
   readonly numericCode: number;
-  readonly status: number;
 
   constructor(code: ArtifactsErrorCode, message: string) {
     super(message);
     this.code = code;
     this.numericCode = CODES[code].numeric;
-    this.status = CODES[code].status;
+  }
+
+  /** HTTP status for REST responses. A getter, so own keys match the real error: name, code, numericCode. */
+  get status(): number {
+    return CODES[this.code].status;
   }
 }
 

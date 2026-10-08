@@ -19,6 +19,7 @@ describe("ArtifactsError", () => {
     expect(err.message).toBe("nope");
     expect(isArtifactsError(err)).toBe(true);
     expect(isArtifactsError(new Error("x"))).toBe(false);
+    expect(Object.keys(err).sort()).toEqual(["code", "name", "numericCode"]);
   });
 
   it.each([
