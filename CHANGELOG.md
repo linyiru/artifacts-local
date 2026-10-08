@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   git remote fails with `INVALID_URL`, as live.
 - REST `raw/:ref/:path` takes the first path segment as the ref and spells
   the text type `text/plain; charset=utf-8`, as live.
+- Unknown routes under `/artifacts` answer a plain-text `404 Not Found`.
 
 ## [0.1.0] - 2026-10-08
 

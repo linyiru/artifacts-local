@@ -391,7 +391,9 @@ export async function handleRest(
     send(res, await route(store, req, m[2] ?? "", url.searchParams));
   } catch (e) {
     if (e instanceof NoRoute) {
-      sendError(res, 404, [{ code: 7000, message: "No route for that URI" }]);
+      // Live answers unknown Artifacts routes with a plain-text 404, not a v4 envelope.
+      res.writeHead(404, { "content-type": "text/plain; charset=UTF-8" });
+      res.end("404 Not Found");
     } else if (e instanceof ArtifactsError) {
       sendError(res, e.status, [e.toApiError()]);
     } else {

@@ -79,7 +79,7 @@ describe("REST envelope and auth", () => {
     }
   });
 
-  it("returns 7000 for unknown routes and methods", async () => {
+  it("answers unknown routes and methods with a plain-text 404, as live", async () => {
     for (const [m, p] of [
       ["GET", "/nope"],
       ["PUT", "/namespaces"],
@@ -90,7 +90,8 @@ describe("REST envelope and auth", () => {
     ] as const) {
       const r = await call(m, p);
       expect(r.status, `${m} ${p}`).toBe(404);
-      expect(r.json!.errors[0].code).toBe(7000);
+      expect(r.type).toBe("text/plain; charset=UTF-8");
+      expect(await r.res.text()).toBe("404 Not Found");
     }
     const outside = await fetch(`${srv.url}/elsewhere`);
     expect(outside.status).toBe(404);
