@@ -288,15 +288,45 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     await api("delete repo never existed", "DELETE", `${BASE}/repos/never-was`);
     await api("get deleted", "GET", `${BASE}/repos/copy`);
   } finally {
+    // A transient network error must not leave repos behind: retry each call, keep going past
+    // failures, and report what could not be removed.
     const headers = { authorization: `Bearer ${t.token}` };
-    const list = (await fetch(`${BASE}/repos?limit=200`, { headers })
-      .then((r) => r.json())
-      .catch(() => ({}))) as {
-      result?: { name: string }[];
+    const failed: string[] = [];
+    const retry = async (what: string, fn: () => Promise<Response>, ok: (r: Response) => boolean) => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const r = await fn();
+          if (ok(r)) return r;
+        } catch {}
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+      failed.push(what);
+      return null;
     };
-    for (const r of list.result ?? []) await fetch(`${BASE}/repos/${r.name}`, { method: "DELETE", headers });
-    await api("ns delete", "DELETE", BASE);
+    const list = await retry(
+      "list repos",
+      () => fetch(`${BASE}/repos?limit=200`, { headers }),
+      (r) => r.ok,
+    );
+    const names = ((await list?.json().catch(() => ({}))) as { result?: { name: string }[] })?.result ?? [];
+    for (const { name } of names) {
+      await retry(
+        `repo ${name}`,
+        () => fetch(`${BASE}/repos/${name}`, { method: "DELETE", headers }),
+        (r) => r.status < 500,
+      );
+    }
+    try {
+      await api("ns delete", "DELETE", BASE);
+    } catch {
+      await retry(
+        "namespace",
+        () => fetch(BASE, { method: "DELETE", headers }),
+        (r) => r.status < 500,
+      );
+    }
     rmSync(work, { recursive: true, force: true });
+    if (failed.length) process.stderr.write(`cleanup left behind in ${t.namespace}: ${failed.join(", ")}\n`);
   }
   return out;
 }

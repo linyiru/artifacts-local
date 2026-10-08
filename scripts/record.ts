@@ -40,11 +40,17 @@ const token = process.argv.includes("--use-cf-login") ? cfLoginToken() : process
 if (!token) throw new Error("set ARTIFACTS_API_TOKEN or pass --use-cf-login");
 
 const namespace = `al-record-${Date.now().toString(36)}`;
-const exchanges = await runScenario({
-  account: `https://api.cloudflare.com/client/v4/accounts/${account}/artifacts`,
-  token,
-  namespace,
-});
+let exchanges;
+try {
+  exchanges = await runScenario({
+    account: `https://api.cloudflare.com/client/v4/accounts/${account}/artifacts`,
+    token,
+    namespace,
+  });
+} catch (e) {
+  process.stderr.write(`recording ${namespace} failed: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}\n`);
+  process.exit(1);
+}
 const out = join(import.meta.dirname, "../test/fixtures/live.json");
 const recorded = {
   recordedAt: new Date().toISOString().slice(0, 10),
