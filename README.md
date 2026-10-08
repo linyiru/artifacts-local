@@ -69,8 +69,8 @@ npx artifacts-local serve --help   # port, data dir, webhook, --async-delay, --a
 ```
 
 In a clone of this repo, `npm start` runs the TypeScript sources directly (Node 24 strips types
-outside `node_modules`). After changing `src/`, run `npm run build` and commit `dist/`; CI fails
-when `dist/` is stale.
+outside `node_modules`). After changing `src/`, run `npm run build` and commit `dist/`; `npm run check`
+and CI fail when `dist/` is stale.
 
 ## Use it from a Worker under `wrangler dev`
 
@@ -130,7 +130,10 @@ Any bearer token works on REST unless you pass `--api-token`. Any account ID wor
 ```sh
 npm test               # unit + integration, including a run inside workerd (Miniflare)
 npm run test:coverage  # thresholds: 90% lines/functions/statements, 85% branches
-npm run build          # dist/: bundled JS and declarations
+npm run build          # dist/ with tsdown (Rolldown), checked by publint
+npm run lint           # oxlint
+npm run format         # oxfmt
+npm run check          # typecheck, lint, format, and dist/ up to date: what CI checks besides tests
 npm run test:contract  # behaviour the emulator must share with the real service
 npm run e2e            # real `wrangler dev` + example app + git push
 ```
