@@ -40,13 +40,15 @@
     "test:live": "ARTIFACTS_LIVE=1 vitest run test/contract",
     "e2e": "scripts/e2e-wrangler.sh",
     "record": "node scripts/record.ts",
-    "build": "tsdown"
+    "build": "tsdown",
+    "lint": "oxlint --deny-warnings"
   },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "24.13.6",
     "@vitest/coverage-v8": "4.1.11",
     "miniflare": "5.20260921.0-alpha",
+    "oxlint": "1.85.0",
     "publint": "0.3.24",
     "rolldown": "1.2.10",
     "tsdown": "0.23.0",

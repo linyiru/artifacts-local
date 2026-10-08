@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "rules": {
+    // Sequential awaits are deliberate here: tests send requests in order, and git refs,
+    // tokens, and files are read one after another.
+    "no-await-in-loop": "off",
+    // Jest's rule; vitest's expect(value, message) takes a second argument.
+    "vitest/valid-expect": "off",
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "rejectsWith"] }]
+  },
+  "overrides": [
+    {
+      // Ambient declarations of runtime classes are empty by design.
+      "files": ["**/*.d.ts"],
+      "rules": { "typescript/no-extraneous-class": "off" }
+    }
+  ],
+  "ignorePatterns": ["dist/**", "coverage/**", "examples/**/.wrangler/**"]
+}

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declarations are bundled, and publint checks the package on every build.
 - Tests bundle the wrangler shim with Rolldown; esbuild is no longer a
   dependency.
+- Lint with oxlint (`npm run lint`): correctness, suspicious, and perf rules
+  as errors.
 
 ## [0.2.1] - 2026-10-08
 
