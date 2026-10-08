@@ -22,7 +22,7 @@ afterAll(async () => {
   await tmp.cleanup();
 });
 
-async function rejectsWith(p: Promise<unknown>, code: string, numericCode?: number) {
+async function rejectsWith(p: Promise<unknown>, code: string, numericCode?: number): Promise<void> {
   const err = await p.then(
     () => {
       throw new Error("expected rejection");
@@ -30,8 +30,7 @@ async function rejectsWith(p: Promise<unknown>, code: string, numericCode?: numb
     (e: unknown) => e,
   );
   expect(err).toBeInstanceOf(ArtifactsError);
-  expect(err).toMatchObject({ name: "ArtifactsError", code });
-  if (numericCode) expect((err as ArtifactsError).numericCode).toBe(numericCode);
+  expect(err).toMatchObject({ name: "ArtifactsError", code, ...(numericCode ? { numericCode } : {}) });
 }
 
 async function seed(remote: string, token: string): Promise<WorkTree> {

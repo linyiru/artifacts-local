@@ -38,6 +38,8 @@ const GIT_ENV = {
   LC_ALL: "C",
 };
 
+const auth = (token: string) => ["-c", `http.extraHeader=Authorization: Bearer ${token}`];
+
 export async function runScenario(t: Target, opts: { skipNetworkImports?: boolean } = {}): Promise<Exchange[]> {
   const out: Exchange[] = [];
   const BASE = `${t.account}/namespaces/${t.namespace}`;
@@ -82,7 +84,6 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     out.push({ kind: "git", label, code: r.status, remote, stdout: r.stdout });
     return r;
   }
-  const auth = (token: string) => ["-c", `http.extraHeader=Authorization: Bearer ${token}`];
 
   try {
     // namespaces

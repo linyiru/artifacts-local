@@ -31,15 +31,12 @@ const NETWORK_LABELS = new Set([
  */
 const VOLATILE = new Set(["objects"]);
 
-function comparable(e: Exchange): unknown {
-  const scrub = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.map(scrub);
-    if (v && typeof v === "object") {
-      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, VOLATILE.has(k) ? typeof x : scrub(x)]));
-    }
-    return v;
-  };
-  return scrub(e);
+function comparable(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(comparable);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, VOLATILE.has(k) ? typeof x : comparable(x)]));
+  }
+  return v;
 }
 
 let tmp: Awaited<ReturnType<typeof tempDir>>;

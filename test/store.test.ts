@@ -103,8 +103,8 @@ describe("createRepo", () => {
   it("lets exactly one of many concurrent creates win", async () => {
     const results = await Promise.allSettled(Array.from({ length: 8 }, () => store.createRepo("default", "race")));
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    for (const r of results.filter((r) => r.status === "rejected")) {
-      expect((r as PromiseRejectedResult).reason).toMatchObject({ code: "ALREADY_EXISTS" });
+    for (const rejected of results.filter((r) => r.status === "rejected")) {
+      expect((rejected as PromiseRejectedResult).reason).toMatchObject({ code: "ALREADY_EXISTS" });
     }
   });
 });

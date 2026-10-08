@@ -30,6 +30,8 @@ describe("parseGitRoute", () => {
   });
 });
 
+const basic = (s: string) => `Basic ${Buffer.from(s).toString("base64")}`;
+
 describe("presentedToken", () => {
   const secret = `art_v2_x_${"b".repeat(40)}`;
   it("reads Bearer tokens", () => {
@@ -38,7 +40,6 @@ describe("presentedToken", () => {
   });
 
   it("reads Basic auth with any user, even an empty one, and the secret as password", () => {
-    const basic = (s: string) => `Basic ${Buffer.from(s).toString("base64")}`;
     expect(presentedToken(basic(`x:${secret}`))).toBe(secret);
     expect(presentedToken(basic(`anyone:${secret}`))).toBe(secret);
     expect(presentedToken(basic(`:${secret}`))).toBe(secret);

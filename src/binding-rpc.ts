@@ -98,14 +98,15 @@ async function namespaceCall(store: Store, ns: string, method: string, args: unk
   throw new ArtifactsError("INVALID_INPUT", `Unknown binding method: ${method}`);
 }
 
+const ok = (result: unknown): RpcResponse => ({ ok: true, result });
+const blob = (data: Buffer | null, type: string): RpcResponse => ({
+  ok: true,
+  blob: data ? { base64: data.toString("base64"), type } : null,
+});
+
 async function repoCall(store: Store, ns: string, repo: string, method: string, args: unknown[]): Promise<RpcResponse> {
   const meta = await store.getReadyRepo(ns, repo);
   const gitDir = store.gitDir(ns, repo);
-  const ok = (result: unknown): RpcResponse => ({ ok: true, result });
-  const blob = (data: Buffer | null, type: string): RpcResponse => ({
-    ok: true,
-    blob: data ? { base64: data.toString("base64"), type } : null,
-  });
   switch (method) {
     case "info":
       return ok(info(store, meta));
