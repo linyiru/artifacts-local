@@ -384,6 +384,89 @@
       "stdout": ""
     },
     {
+      "kind": "http",
+      "label": "advertisement upload-pack v0",
+      "method": "GET",
+      "path": "<host>/git/<ns>/base.git/info/refs?service=git-upload-pack",
+      "request": null,
+      "status": 200,
+      "contentType": "application/x-git-upload-pack-advertisement",
+      "body": [
+        "# service=git-upload-pack\n",
+        "flush",
+        "<sha> HEAD\u0000agent=<agent> object-format=sha1 multi_ack multi_ack_detailed no-done side-band side-band-64k shallow deepen-since deepen-not deepen-relative allow-tip-sha1-in-want allow-reachable-sha1-in-want no-progress symref=HEAD:refs/heads/main\n",
+        "<sha> refs/heads/feature/x\n",
+        "<sha> refs/heads/main\n",
+        "<sha> refs/heads/side\n",
+        "<sha> refs/tags/v1\n",
+        "<sha> refs/tags/v1^{}\n",
+        "flush"
+      ]
+    },
+    {
+      "kind": "http",
+      "label": "advertisement upload-pack v2",
+      "method": "GET",
+      "path": "<host>/git/<ns>/base.git/info/refs?service=git-upload-pack",
+      "request": null,
+      "status": 200,
+      "contentType": "application/x-git-upload-pack-advertisement",
+      "body": [
+        "# service=git-upload-pack\n",
+        "flush",
+        "version 2\n",
+        "agent=<agent>\n",
+        "ls-refs=unborn\n",
+        "fetch=shallow filter sideband-all\n",
+        "object-format=sha1\n",
+        "flush"
+      ]
+    },
+    {
+      "kind": "http",
+      "label": "advertisement receive-pack",
+      "method": "GET",
+      "path": "<host>/git/<ns>/base.git/info/refs?service=git-receive-pack",
+      "request": null,
+      "status": 200,
+      "contentType": "application/x-git-receive-pack-advertisement",
+      "body": [
+        "# service=git-receive-pack\n",
+        "flush",
+        "<sha> HEAD\u0000report-status delete-refs ofs-delta side-band-64k symref=HEAD:refs/heads/main\n",
+        "<sha> refs/heads/feature/x\n",
+        "<sha> refs/heads/main\n",
+        "<sha> refs/heads/side\n",
+        "<sha> refs/tags/v1\n",
+        "flush"
+      ]
+    },
+    {
+      "kind": "git",
+      "label": "branch unpushed",
+      "code": 0,
+      "remote": [],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "push --atomic",
+      "code": 1,
+      "remote": [
+        "fatal: the receiving end does not support --atomic push"
+      ],
+      "stdout": ""
+    },
+    {
+      "kind": "git",
+      "label": "push -o",
+      "code": 1,
+      "remote": [
+        "fatal: the receiving end does not support push options"
+      ],
+      "stdout": ""
+    },
+    {
       "kind": "git",
       "label": "ls-remote basic",
       "code": 0,

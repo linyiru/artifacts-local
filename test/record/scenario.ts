@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { parsePkts } from "../../src/capabilities.ts";
 
 // One fixed sequence of REST calls and git commands, run against any Artifacts target.
 // `npm run record` runs it against the live service and saves the result as a fixture;
@@ -88,7 +89,9 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     });
     const remote = r.stderr
       .split("\n")
-      .filter((l) => /^remote: |filtering not recognized|could not read Username|returned error: \d+/.test(l))
+      .filter((l) =>
+        /^remote: |filtering not recognized|could not read Username|returned error: \d+|does not support/.test(l),
+      )
       .map((l) =>
         l.replace(/unable to access '[^']*'/, "unable to access '<remote>'").replace(/for '[^']*'/, "for '<host>'"),
       );
@@ -138,6 +141,47 @@ export async function runScenario(t: Target, opts: { skipNetworkImports?: boolea
     await git("tag", ["-C", w, "tag", "-a", "v1", "-m", "release"]);
     await git("push without auth", ["-C", w, "push", remote, "main"]);
     await git("push", ["-C", w, ...auth(token), "push", "-q", remote, "main", "side", "feature/x", "--tags"]);
+
+    // Capability advertisements, one pkt-line per entry, and the pushes they rule out.
+    async function advertisement(label: string, service: string, proto?: string) {
+      const url = `${remote}/info/refs?service=${service}`;
+      const res = await fetch(url, {
+        headers: { authorization: `Bearer ${token}`, ...(proto ? { "git-protocol": proto } : {}) },
+      });
+      const body = Buffer.from(await res.arrayBuffer());
+      let pkts: unknown;
+      try {
+        pkts = parsePkts(body).map((p) => (p instanceof Buffer ? p.toString("latin1") : p));
+      } catch {
+        pkts = body.toString("latin1");
+      }
+      out.push({
+        kind: "http",
+        label,
+        method: "GET",
+        path: url,
+        request: null,
+        status: res.status,
+        contentType: res.headers.get("content-type") ?? "",
+        body: pkts,
+      });
+    }
+    await advertisement("advertisement upload-pack v0", "git-upload-pack");
+    await advertisement("advertisement upload-pack v2", "git-upload-pack", "version=2");
+    await advertisement("advertisement receive-pack", "git-receive-pack");
+    // Something new to push: git only checks these capabilities when it has refs to update.
+    await git("branch unpushed", ["-C", w, "branch", "unpushed"]);
+    await git("push --atomic", [
+      "-C",
+      w,
+      ...auth(token),
+      "push",
+      "--atomic",
+      remote,
+      "unpushed",
+      "main:refs/heads/main2",
+    ]);
+    await git("push -o", ["-C", w, ...auth(token), "push", "-o", "ci.skip", remote, "unpushed"]);
     const secret = token.split("?expires=")[0]!;
     const basic = new URL(remote);
     basic.username = "x";

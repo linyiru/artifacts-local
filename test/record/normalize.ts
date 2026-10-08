@@ -19,7 +19,9 @@ export function normalize(exchanges: Exchange[], namespace: string, extraSecrets
     .replace(/\/tokens\/[0-9a-z]{16}"/g, '/tokens/<id>"')
     .replace(/"cursor":"[^"]+"/g, '"cursor":"<cursor>"')
     .replace(/cursor=[^"&]+/g, "cursor=<cursor>")
-    .replace(/"(authoredAt|committedAt)":\d+/g, '"$1":0');
+    .replace(/"(authoredAt|committedAt)":\d+/g, '"$1":0')
+    // The service reports agent=gitty/1.0, the emulator agent=artifacts-local.
+    .replace(/agent=[^ \\"]+/g, "agent=<agent>");
   return JSON.parse(s) as Exchange[];
 }
 
