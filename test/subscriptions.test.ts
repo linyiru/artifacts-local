@@ -108,7 +108,9 @@ describe("delivery", () => {
     const first = s.pull("q", 0, 1);
     expect(first.messages).toHaveLength(1);
     expect(s.pull("q", first.next).messages.map((m) => m.body.payload.i)).toEqual([3, 4]);
-    expect(s.pull("q", all.next)).toEqual({ messages: [], next: all.next });
-    expect(s.pull("missing")).toEqual({ messages: [], next: 0 });
+    expect(s.pull("q", all.next)).toEqual({ epoch: s.epoch, messages: [], next: all.next });
+    expect(s.pull("missing")).toEqual({ epoch: s.epoch, messages: [], next: 0 });
+    expect(s.epoch).toMatch(/^[0-9a-f]{32}$/);
+    expect(new Subscriptions().epoch).not.toBe(s.epoch);
   });
 });

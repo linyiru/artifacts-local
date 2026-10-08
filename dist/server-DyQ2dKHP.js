@@ -491,6 +491,8 @@ var Subscriptions = class {
 	subs = /* @__PURE__ */ new Map();
 	feeds = /* @__PURE__ */ new Map();
 	seq = 0;
+	/** Changes when the emulator restarts and positions start over; consumers reset on a new epoch. */
+	epoch = hexId();
 	now;
 	maxPerQueue;
 	constructor(now = Date.now, maxPerQueue = 1e4) {
@@ -562,6 +564,7 @@ var Subscriptions = class {
 	pull(queue, after = 0, limit = 100) {
 		const messages = (this.feeds.get(queue) ?? []).filter((m) => m.seq > after).slice(0, limit);
 		return {
+			epoch: this.epoch,
 			messages,
 			next: messages.at(-1)?.seq ?? after
 		};

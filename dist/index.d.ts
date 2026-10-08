@@ -52,6 +52,8 @@ declare class Subscriptions {
   private subs;
   private feeds;
   private seq;
+  /** Changes when the emulator restarts and positions start over; consumers reset on a new epoch. */
+  readonly epoch: string;
   private readonly now;
   private readonly maxPerQueue;
   constructor(now?: () => number, maxPerQueue?: number);
@@ -67,6 +69,7 @@ declare class Subscriptions {
   deliver(event: ArtifactsEvent): void;
   /** Messages in `queue` after position `after`, oldest first. */
   pull(queue: string, after?: number, limit?: number): {
+    epoch: string;
     messages: QueueMessage[];
     next: number;
   };

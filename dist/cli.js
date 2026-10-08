@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { a as handleBinding, t as startServer } from "./server-hl8JFtPr.js";
+import { a as handleBinding, t as startServer } from "./server-DyQ2dKHP.js";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 //#region src/cli.ts

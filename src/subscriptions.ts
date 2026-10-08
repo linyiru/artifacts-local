@@ -48,6 +48,8 @@ export class Subscriptions {
   private subs = new Map<string, Subscription>();
   private feeds = new Map<string, QueueMessage[]>();
   private seq = 0;
+  /** Changes when the emulator restarts and positions start over; consumers reset on a new epoch. */
+  readonly epoch = hexId();
   private readonly now: () => number;
   private readonly maxPerQueue: number;
 
@@ -132,8 +134,8 @@ export class Subscriptions {
   }
 
   /** Messages in `queue` after position `after`, oldest first. */
-  pull(queue: string, after = 0, limit = 100): { messages: QueueMessage[]; next: number } {
+  pull(queue: string, after = 0, limit = 100): { epoch: string; messages: QueueMessage[]; next: number } {
     const messages = (this.feeds.get(queue) ?? []).filter((m) => m.seq > after).slice(0, limit);
-    return { messages, next: messages.at(-1)?.seq ?? after };
+    return { epoch: this.epoch, messages, next: messages.at(-1)?.seq ?? after };
   }
 }
